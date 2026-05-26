@@ -1,0 +1,20 @@
+# MetaBreak TM-1 reproduction — Python dependencies
+# Target env: conda "metabreak", Python 3.11
+# Tested host: NVIDIA RTX A6000, driver 550.54.14, CUDA 12.4
+#
+# Install:
+#   conda create -n metabreak python=3.11 -y
+#   conda run -n metabreak pip install -r requirements.txt
+#
+# NOTE on torch: the host driver (550) supports up to CUDA 12.4, so torch is
+# pinned to the cu124 build. The "+cu124" local version forces pip to take the
+# wheel from the PyTorch index instead of PyPI's newer CUDA-13 build.
+
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+torch==2.6.0+cu124
+transformers==4.48.3      # 4.x: matches the code's torch_dtype= API; supports Llama-3.1 / Guard-3
+accelerate>=1.0,<2.0      # required by from_pretrained(low_cpu_mem_usage=True)
+numpy>=1.26,<3.0
+safetensors>=0.4.0        # Llama-3.1 weights are .safetensors
+sentencepiece>=0.2.0      # tokenizer fallback
