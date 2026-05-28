@@ -1,6 +1,0 @@
-{
-  "model_repo": "meta-llama/Llama-3.1-8B-Instruct",
-  "model_path": "/gallery_tate/yeonseok.jung/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
-  "guard_repo": "meta-llama/Llama-Guard-3-8B",
-  "guard_path": "/gallery_tate/yeonseok.jung/.cache/huggingface/hub/models--meta-llama--Llama-Guard-3-8B/snapshots/7327bd9f6efbbe6101dc6cc4736302b3cbb6e425"
-}

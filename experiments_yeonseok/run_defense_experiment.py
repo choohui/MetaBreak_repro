@@ -14,7 +14,8 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
-DEFAULT_PROMPTS = REPO_ROOT / "Q_TM-1_Llama.txt"
+DEFAULT_MODEL_TYPE = "llama"
+DEFAULT_PROMPTS = REPO_ROOT / "prompts" / "Q_TM-1_Llama.txt"
 
 
 def run_step(name: str, cmd: list[str], log_path: Path) -> None:
@@ -84,7 +85,9 @@ def summarize(
 
     summary = {
         "model": args.model,
+        "model_type": args.model_type,
         "guard_model": args.guard_model,
+        "prompts": args.prompts,
         "n": args.n,
         "topk": args.topk,
         "neighbor_rank": args.neighbor_rank,
@@ -128,8 +131,9 @@ def write_results_md(path: Path, summary: dict[str, Any]) -> None:
         "## Setup",
         "",
         f"- Model: `{summary['model']}`",
+        f"- Model type: `{summary['model_type']}`",
         f"- Guard model: `{summary['guard_model']}`",
-        f"- Prompts: first {summary['n']} from `Q_TM-1_Llama.txt`",
+        f"- Prompts: first {summary['n']} from `{summary['prompts']}`",
         f"- Embedding search topk: {summary['topk']}",
         f"- Guard neighbor rank: {summary['neighbor_rank']}",
         f"- Guard threshold margin: {summary['threshold_margin']}",
@@ -174,6 +178,8 @@ def write_results_md(path: Path, summary: dict[str, Any]) -> None:
         f"- Baseline literal-special prompts blocked: {detection['blocked_baseline']}/{detection['n_items']} "
         f"({detection['blocked_baseline_pct']}%)",
         f"- Mimicked reason counts: `{detection['mimicked_reason_counts']}`",
+        "- Repeated regular assistant-header structure is recorded as an "
+        "observation but does not block by itself.",
         "",
         "## Selectivity",
         "",
@@ -209,11 +215,12 @@ def write_results_md(path: Path, summary: dict[str, Any]) -> None:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--model_type", default=DEFAULT_MODEL_TYPE)
     p.add_argument("--model", required=True)
     p.add_argument("--prompts", default=str(DEFAULT_PROMPTS))
     p.add_argument("--out_dir", default=str(HERE / "results" / "l2_guard"))
-    p.add_argument("--n", type=int, default=10)
-    p.add_argument("--topk", type=int, default=80)
+    p.add_argument("--n", type=int, default=450)
+    p.add_argument("--topk", type=int, default=200)
     p.add_argument("--max_new_tokens", type=int, default=128)
     p.add_argument("--temperature", type=float, default=0.0)
     p.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
@@ -221,6 +228,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--guard_model", default=None)
     p.add_argument("--also_baseline", action="store_true")
     p.add_argument("--skip_embedding", action="store_true")
+    p.add_argument("--reuse_no_defense", action="store_true")
     p.add_argument("--neighbor_rank", type=int, default=256)
     p.add_argument("--threshold_margin", type=float, default=0.0)
     p.add_argument("--structural_min_spans", type=int, default=2)
@@ -255,7 +263,9 @@ def main() -> None:
             "embedding",
             [
                 py,
-                "embedding.py",
+                "src/embedding.py",
+                "--model_type",
+                args.model_type,
                 "--model",
                 args.model,
                 "--output",
@@ -274,7 +284,9 @@ def main() -> None:
         "mimicry",
         [
             py,
-            "mimicry.py",
+            "src/mimicry.py",
+            "--model_type",
+            args.model_type,
             "--model",
             args.model,
             "--prompts",
@@ -289,46 +301,53 @@ def main() -> None:
         log_dir / "02_mimicry.log",
     )
 
-    attack_cmd = [
-        py,
-        "attack.py",
-        "--model",
-        args.model,
-        "--prompts",
-        str(prompts),
-        "--output",
-        str(no_def_responses),
-        "--max_new_tokens",
-        str(args.max_new_tokens),
-        "--temperature",
-        str(args.temperature),
-        "--dtype",
-        args.dtype,
-    ]
-    if args.device:
-        attack_cmd += ["--device", args.device]
-    if args.also_baseline:
-        attack_cmd += ["--also_baseline"]
-    run_step("attack_no_defense", attack_cmd, log_dir / "03_attack_no_defense.log")
-
-    run_step(
-        "evaluate_no_defense",
-        [
+    if args.reuse_no_defense and no_def_responses.exists() and no_def_report.exists():
+        print(f"[runner] no_defense: reusing {no_def_responses} and {no_def_report}")
+    else:
+        attack_cmd = [
             py,
-            "evaluate.py",
-            "--responses",
-            str(no_def_responses),
+            "src/attack.py",
+            "--model_type",
+            args.model_type,
+            "--model",
+            args.model,
+            "--prompts",
+            str(prompts),
             "--output",
-            str(no_def_report),
-            "--per_item",
-            str(no_def_per_item),
+            str(no_def_responses),
+            "--max_new_tokens",
+            str(args.max_new_tokens),
+            "--temperature",
+            str(args.temperature),
             "--dtype",
             args.dtype,
         ]
-        + (["--guard_model", args.guard_model] if args.guard_model else [])
-        + (["--device", args.device] if args.device else []),
-        log_dir / "04_evaluate_no_defense.log",
-    )
+        if args.device:
+            attack_cmd += ["--device", args.device]
+        if args.also_baseline:
+            attack_cmd += ["--also_baseline"]
+        run_step("attack_no_defense", attack_cmd, log_dir / "03_attack_no_defense.log")
+
+        run_step(
+            "evaluate_no_defense",
+            [
+                py,
+                "src/evaluate.py",
+                "--model_type",
+                args.model_type,
+                "--responses",
+                str(no_def_responses),
+                "--output",
+                str(no_def_report),
+                "--per_item",
+                str(no_def_per_item),
+                "--dtype",
+                args.dtype,
+            ]
+            + (["--guard_model", args.guard_model] if args.guard_model else [])
+            + (["--device", args.device] if args.device else []),
+            log_dir / "04_evaluate_no_defense.log",
+        )
 
     defended_cmd = [
         py,
@@ -351,6 +370,8 @@ def main() -> None:
         str(args.threshold_margin),
         "--structural_min_spans",
         str(args.structural_min_spans),
+        "--replacement",
+        str(replacement),
     ]
     if args.device:
         defended_cmd += ["--device", args.device]
@@ -362,7 +383,9 @@ def main() -> None:
         "evaluate_defended",
         [
             py,
-            "evaluate.py",
+            "src/evaluate.py",
+            "--model_type",
+            args.model_type,
             "--responses",
             str(defended_responses),
             "--output",
@@ -400,6 +423,8 @@ def main() -> None:
             str(args.threshold_margin),
             "--structural_min_spans",
             str(args.structural_min_spans),
+            "--replacement",
+            str(replacement),
         ],
         log_dir / "07_evaluate_guard_selectivity.log",
     )

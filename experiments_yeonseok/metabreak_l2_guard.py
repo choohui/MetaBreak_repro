@@ -2,14 +2,17 @@
 
 The MetaBreak TM-1 attack replaces Llama chat-template special tokens with
 regular tokens that are close in the input-embedding table. This module detects
-that attack after tokenization by scanning for the assistant-header shape whose
-regular tokens are embedding-near the target special tokens.
+that attack after tokenization by scanning for literal special IDs, known
+replacement signatures, and assistant-header shapes whose regular tokens are
+embedding-near the target special tokens. Repeated structure alone is recorded
+for diagnostics but is not blocking by default.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +20,11 @@ from typing import Any
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))
+
+from src.model_configs import resolve_config  # noqa: E402
 
 
 TARGET_IDS = {
@@ -60,6 +68,8 @@ class L2MimicryGuard:
         threshold_margin: float = 0.0,
         structural_min_spans: int = 2,
         special_start: int = LLAMA3_SPECIAL_START,
+        known_mimicry_spans: list[list[int]] | None = None,
+        block_repeated_structure: bool = False,
     ) -> None:
         if neighbor_rank < 1:
             raise ValueError("neighbor_rank must be >= 1")
@@ -70,6 +80,11 @@ class L2MimicryGuard:
         self.threshold_margin = float(threshold_margin)
         self.structural_min_spans = int(structural_min_spans)
         self.special_start = int(special_start)
+        self.known_mimicry_spans = {
+            tuple(int(token_id) for token_id in span)
+            for span in (known_mimicry_spans or [])
+        }
+        self.block_repeated_structure = bool(block_repeated_structure)
 
         self._validate_tokenizer()
         self.thresholds, self.nearest_neighbors = self._calibrate_thresholds()
@@ -84,6 +99,8 @@ class L2MimicryGuard:
         threshold_margin: float = 0.0,
         structural_min_spans: int = 2,
         special_start: int = LLAMA3_SPECIAL_START,
+        known_mimicry_spans: list[list[int]] | None = None,
+        block_repeated_structure: bool = False,
     ) -> "L2MimicryGuard":
         return cls(
             tokenizer,
@@ -92,6 +109,8 @@ class L2MimicryGuard:
             threshold_margin=threshold_margin,
             structural_min_spans=structural_min_spans,
             special_start=special_start,
+            known_mimicry_spans=known_mimicry_spans,
+            block_repeated_structure=block_repeated_structure,
         )
 
     def _validate_tokenizer(self) -> None:
@@ -177,6 +196,7 @@ class L2MimicryGuard:
     def inspect_ids(self, input_ids: list[int]) -> dict[str, Any]:
         detections: list[dict[str, Any]] = []
         regular_header_spans: list[dict[str, Any]] = []
+        structural_observations: list[dict[str, Any]] = []
         literal_ids = set(TARGET_IDS.values())
 
         for pos, token_id in enumerate(input_ids):
@@ -214,6 +234,13 @@ class L2MimicryGuard:
                 "thresholds_l2": threshold_dict,
             }
             regular_header_spans.append(span_info)
+            if tuple(int(x) for x in span) in self.known_mimicry_spans:
+                detections.append(
+                    {
+                        "kind": "known_mimicry_assistant_header",
+                        **span_info,
+                    }
+                )
             matched = (
                 d_eot <= self.thresholds.eot
                 and d_start <= self.thresholds.start_header
@@ -245,18 +272,20 @@ class L2MimicryGuard:
                     for span_info in regular_header_spans
                     if tuple(span_info["span_token_ids"]) in repeated_set
                 ]
-                detections.append(
-                    {
-                        "kind": "regular_assistant_header_pattern",
-                        "n_spans": len(regular_header_spans),
-                        "min_required_repetitions": self.structural_min_spans,
-                        "repeated_span_counts": {
-                            json.dumps(list(signature)): count
-                            for signature, count in repeated.items()
-                        },
-                        "spans": repeated_spans[:10],
-                    }
-                )
+                observation = {
+                    "kind": "regular_assistant_header_pattern",
+                    "blocking": self.block_repeated_structure,
+                    "n_spans": len(regular_header_spans),
+                    "min_required_repetitions": self.structural_min_spans,
+                    "repeated_span_counts": {
+                        json.dumps(list(signature)): count
+                        for signature, count in repeated.items()
+                    },
+                    "spans": repeated_spans[:10],
+                }
+                structural_observations.append(observation)
+                if self.block_repeated_structure:
+                    detections.append(observation)
 
         blocked = bool(detections)
         reasons = sorted({d["kind"] for d in detections})
@@ -266,9 +295,11 @@ class L2MimicryGuard:
             "n_input_tokens": len(input_ids),
             "n_detections": len(detections),
             "detections": detections,
+            "structural_observations": structural_observations,
             "neighbor_rank": self.neighbor_rank,
             "threshold_margin": self.threshold_margin,
             "structural_min_spans": self.structural_min_spans,
+            "block_repeated_structure": self.block_repeated_structure,
             "thresholds_l2": threshold_dict,
         }
 
@@ -287,9 +318,55 @@ class L2MimicryGuard:
             "neighbor_rank": self.neighbor_rank,
             "threshold_margin": self.threshold_margin,
             "structural_min_spans": self.structural_min_spans,
+            "block_repeated_structure": self.block_repeated_structure,
+            "known_mimicry_spans": [list(span) for span in sorted(self.known_mimicry_spans)],
             "thresholds_l2": self.thresholds.as_dict(),
             "nearest_neighbors_preview": self.nearest_neighbors,
         }
+
+
+def load_known_mimicry_spans(
+    tokenizer: Any,
+    replacement_path: Path | None,
+    *,
+    model_type: str = "llama",
+) -> list[list[int]]:
+    if replacement_path is None:
+        return []
+    with open(replacement_path, "r", encoding="utf-8") as f:
+        replacement = json.load(f)
+    cfg = resolve_config(model_type, tokenizer)
+    replacement_strs = replacement["best_triple_decoded"]
+    if len(replacement_strs) != len(cfg.replace_positions):
+        raise ValueError(
+            f"Replacement length {len(replacement_strs)} does not match "
+            f"{len(cfg.replace_positions)} special positions."
+        )
+    parts: list[str | None] = [None] * cfg.expected_n_tokens
+    for pos, fixed in zip(cfg.fixed_positions, cfg.fixed_strs):
+        parts[pos] = fixed
+    for pos, repl in zip(cfg.replace_positions, replacement_strs):
+        parts[pos] = repl
+    mimicry_header = "".join(part or "" for part in parts)
+    header_ids = tokenizer(mimicry_header, add_special_tokens=False)["input_ids"]
+    if len(header_ids) != cfg.expected_n_tokens:
+        raise ValueError(
+            f"Known mimicry header retokenized to {len(header_ids)} tokens, "
+            f"expected {cfg.expected_n_tokens}: {header_ids}"
+        )
+
+    # The first decoded replacement string can merge/split differently after
+    # ordinary preceding text, so include the actual 5-token header-like spans
+    # observed under common left contexts, not only the standalone header.
+    spans: set[tuple[int, ...]] = {tuple(int(token_id) for token_id in header_ids)}
+    for prefix in ["x", ".", ",", "Sure,", "here"]:
+        ids = tokenizer(prefix + mimicry_header, add_special_tokens=False)["input_ids"]
+        for pos in range(0, max(0, len(ids) - 4)):
+            span = ids[pos : pos + 5]
+            if span[2] == ASSISTANT_ID and span[4] == DOUBLE_NEWLINE_ID:
+                if not any(int(token_id) in cfg.special_token_ids for token_id in (span[0], span[1], span[3])):
+                    spans.add(tuple(int(token_id) for token_id in span))
+    return [list(span) for span in sorted(spans)]
 
 
 def _load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -306,6 +383,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--neighbor_rank", type=int, default=256)
     p.add_argument("--threshold_margin", type=float, default=0.0)
     p.add_argument("--structural_min_spans", type=int, default=2)
+    p.add_argument("--replacement", default=None)
+    p.add_argument("--block_repeated_structure", action="store_true")
     p.add_argument(
         "--dtype",
         default="bfloat16",
@@ -322,6 +401,10 @@ def main() -> None:
         "float32": torch.float32,
     }
     tokenizer = AutoTokenizer.from_pretrained(args.model)
+    known_mimicry_spans = load_known_mimicry_spans(
+        tokenizer,
+        Path(args.replacement) if args.replacement else None,
+    )
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
         torch_dtype=dtype_map[args.dtype],
@@ -333,6 +416,8 @@ def main() -> None:
         neighbor_rank=args.neighbor_rank,
         threshold_margin=args.threshold_margin,
         structural_min_spans=args.structural_min_spans,
+        known_mimicry_spans=known_mimicry_spans,
+        block_repeated_structure=args.block_repeated_structure,
     )
     out: dict[str, Any] = {"guard": guard.metadata()}
 

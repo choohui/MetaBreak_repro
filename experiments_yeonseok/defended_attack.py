@@ -15,7 +15,11 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 
-from metabreak_l2_guard import DEFAULT_REFUSAL, L2MimicryGuard  # noqa: E402
+from metabreak_l2_guard import (  # noqa: E402
+    DEFAULT_REFUSAL,
+    L2MimicryGuard,
+    load_known_mimicry_spans,
+)
 
 
 def build_inputs(tokenizer, user_content: str, device: str) -> torch.Tensor:
@@ -114,6 +118,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--neighbor_rank", type=int, default=256)
     p.add_argument("--threshold_margin", type=float, default=0.0)
     p.add_argument("--structural_min_spans", type=int, default=2)
+    p.add_argument("--replacement", default=None)
+    p.add_argument("--block_repeated_structure", action="store_true")
     return p.parse_args()
 
 
@@ -130,6 +136,10 @@ def main() -> None:
     }
     print(f"[defended_attack] loading {args.model} ({args.dtype}) onto {device}")
     tokenizer = AutoTokenizer.from_pretrained(args.model)
+    known_mimicry_spans = load_known_mimicry_spans(
+        tokenizer,
+        Path(args.replacement) if args.replacement else None,
+    )
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
         torch_dtype=dtype_map[args.dtype],
@@ -142,6 +152,8 @@ def main() -> None:
         neighbor_rank=args.neighbor_rank,
         threshold_margin=args.threshold_margin,
         structural_min_spans=args.structural_min_spans,
+        known_mimicry_spans=known_mimicry_spans,
+        block_repeated_structure=args.block_repeated_structure,
     )
     print(f"[defended_attack] guard thresholds: {guard.thresholds.as_dict()}")
 

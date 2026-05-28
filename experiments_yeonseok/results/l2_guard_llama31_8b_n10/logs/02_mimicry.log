@@ -1,8 +1,0 @@
-$ /gallery_tate/yeonseok.jung/miniconda3/envs/metabreak/bin/python mimicry.py --model /gallery_tate/yeonseok.jung/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659 --prompts /gallery_tate/yeonseok.jung/MetaBreak_repro/Q_TM-1_Llama.txt --replacement /gallery_tate/yeonseok.jung/MetaBreak_repro/experiments_yeonseok/results/l2_guard_llama31_8b_n10/common/replacement.json --output /gallery_tate/yeonseok.jung/MetaBreak_repro/experiments_yeonseok/results/l2_guard_llama31_8b_n10/common/prompt_mimicked.jsonl --n 10
-
-[mimicry] replacement triple: [115614, 182, 182] -> ["'ujících'", "'�'", "'�'"]
-[mimicry] loaded 450 prompts; rewriting first 10
-[mimicry] wrote 10 records to /gallery_tate/yeonseok.jung/MetaBreak_repro/experiments_yeonseok/results/l2_guard_llama31_8b_n10/common/prompt_mimicked.jsonl
-[mimicry] clean (no special IDs after retokenization): 10/10
-
-[runner] exit_code=0 elapsed_seconds=7.20
