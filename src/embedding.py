@@ -190,6 +190,63 @@ def search_best_tuple(
     }
 
 
+def run(args: argparse.Namespace) -> None:
+    """Run embedding search given a pre-built Namespace (no sys.argv parsing).
+
+    Designed to be called directly from ``run.py`` or other orchestrators.
+    All fields of *args* must be set; see ``parse_args()`` for the full list.
+    """
+    device: str = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    out_path = Path(args.output) if getattr(args, "output", None) else default_output_path(args.model_type)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    print(f"[embedding] loading tokenizer + model from {args.model}")
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
+
+    cfg = resolve_config(args.model_type, tokenizer)
+    print(f"[embedding] model_type        : {cfg.model_type} "
+          f"(auto_detected={cfg.auto_detected})")
+    print(f"[embedding] assistant_header  : {cfg.assistant_header!r}")
+    print(f"[embedding] target_token_strs : {cfg.target_token_strs}")
+    print(f"[embedding] target_token_ids  : {cfg.target_token_ids}")
+    print(f"[embedding] fixed (pos/str)   : "
+          f"{list(zip(cfg.fixed_positions, [repr(s) for s in cfg.fixed_strs]))}")
+    print(f"[embedding] expected_n_tokens : {cfg.expected_n_tokens}")
+
+    dtype_map = {
+        "bfloat16": torch.bfloat16,
+        "float16":  torch.float16,
+        "float32":  torch.float32,
+    }
+    # We only need the input-embedding matrix, but loading the full causal LM
+    # is the simplest reliable path; del model below keeps peak memory bounded.
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model,
+        torch_dtype=dtype_map[args.dtype],
+        low_cpu_mem_usage=True,
+    )
+    embedding_layer = model.get_input_embeddings()
+    print(f"[embedding] embedding shape: {tuple(embedding_layer.weight.shape)}")
+    embedding_weights = embedding_layer.weight.detach().cpu().clone()
+    del model
+    if device.startswith("cuda"):
+        torch.cuda.empty_cache()
+
+    print(f"[embedding] searching best {len(cfg.replace_positions)}-tuple "
+          f"with topk={args.topk} ...")
+    result = search_best_tuple(
+        cfg, tokenizer, embedding_weights, topk=args.topk, verbose=True,
+    )
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2, ensure_ascii=False)
+
+    print(f"[embedding] best tuple ids      : {result['best_triple_ids']}")
+    print(f"[embedding] best tuple strings  : {result['best_triple_decoded']}")
+    print(f"[embedding] L2-sum              : {result['best_similarity_l2_sum']:.4f}")
+    print(f"[embedding] saved to            : {out_path}")
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
@@ -224,56 +281,7 @@ def default_output_path(model_type: str) -> Path:
 
 
 def main() -> None:
-    args = parse_args()
-    out_path = Path(args.output) if args.output else default_output_path(args.model_type)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    print(f"[embedding] loading tokenizer + model from {args.model}")
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
-
-    cfg = resolve_config(args.model_type, tokenizer)
-    print(f"[embedding] model_type        : {cfg.model_type} "
-          f"(auto_detected={cfg.auto_detected})")
-    print(f"[embedding] assistant_header  : {cfg.assistant_header!r}")
-    print(f"[embedding] target_token_strs : {cfg.target_token_strs}")
-    print(f"[embedding] target_token_ids  : {cfg.target_token_ids}")
-    print(f"[embedding] fixed (pos/str)   : "
-          f"{list(zip(cfg.fixed_positions, [repr(s) for s in cfg.fixed_strs]))}")
-    print(f"[embedding] expected_n_tokens : {cfg.expected_n_tokens}")
-
-    dtype_map = {
-        "bfloat16": torch.bfloat16,
-        "float16": torch.float16,
-        "float32": torch.float32,
-    }
-    # We only need the input-embedding matrix, but loading the full causal LM
-    # is the simplest reliable path; embedding extraction + del model below
-    # keeps peak memory bounded.
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        torch_dtype=dtype_map[args.dtype],
-        low_cpu_mem_usage=True,
-    )
-    embedding_layer = model.get_input_embeddings()
-    print(f"[embedding] embedding shape: {tuple(embedding_layer.weight.shape)}")
-    embedding_weights = embedding_layer.weight.detach().cpu().clone()
-    del model
-    if args.device.startswith("cuda"):
-        torch.cuda.empty_cache()
-
-    print(f"[embedding] searching best {len(cfg.replace_positions)}-tuple "
-          f"with topk={args.topk} ...")
-    result = search_best_tuple(
-        cfg, tokenizer, embedding_weights, topk=args.topk, verbose=True,
-    )
-
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=2, ensure_ascii=False)
-
-    print(f"[embedding] best tuple ids      : {result['best_triple_ids']}")
-    print(f"[embedding] best tuple strings  : {result['best_triple_decoded']}")
-    print(f"[embedding] L2-sum              : {result['best_similarity_l2_sum']:.4f}")
-    print(f"[embedding] saved to            : {out_path}")
+    run(parse_args())
 
 
 if __name__ == "__main__":

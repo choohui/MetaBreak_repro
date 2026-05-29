@@ -13,8 +13,9 @@
 --extra-index-url https://download.pytorch.org/whl/cu124
 
 torch==2.6.0+cu124
-transformers==4.48.3      # 4.x: matches the code's torch_dtype= API; supports Llama-3.1 / Guard-3
+transformers==4.48.3      # 4.x: supports Llama-3.1 / Guard-3 / Qwen2.5 / Gemma-2 / Phi-4
 accelerate>=1.0,<2.0      # required by from_pretrained(low_cpu_mem_usage=True)
 numpy>=1.26,<3.0
-safetensors>=0.4.0        # Llama-3.1 weights are .safetensors
-sentencepiece>=0.2.0      # tokenizer fallback
+safetensors>=0.4.0        # model weights are .safetensors
+sentencepiece>=0.2.0      # tokenizer fallback for some families
+datasets>=2.18,<4.0       # used by experiments_yeonseok/ (XSTest benchmark download)

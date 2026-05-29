@@ -91,6 +91,79 @@ def generate_once(
     }
 
 
+def run(args: argparse.Namespace) -> None:
+    """Run the attack stage given a pre-built Namespace (no sys.argv parsing).
+
+    Designed to be called directly from ``run.py`` or other orchestrators.
+    """
+    device: str = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    prompts_path = Path(args.prompts) if getattr(args, "prompts", None) else _default_prompts(args.model_type)
+    out_path     = Path(args.output) if getattr(args, "output", None) else _default_output(args.model_type)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    dtype_map = {
+        "bfloat16": torch.bfloat16,
+        "float16":  torch.float16,
+        "float32":  torch.float32,
+    }
+    print(f"[attack] loading {args.model} ({args.dtype}) onto {device}")
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model,
+        torch_dtype=dtype_map[args.dtype],
+        low_cpu_mem_usage=True,
+    ).to(device)
+    model.eval()
+
+    do_sample = args.temperature > 0.0
+
+    n_done = 0
+    with open(prompts_path, "r", encoding="utf-8") as fin, \
+         open(out_path, "w", encoding="utf-8") as fout:
+        for line in fin:
+            rec = json.loads(line)
+            idx = rec["idx"]
+            mimicked = rec["mimicked"]
+            original = rec["original"]
+
+            print(f"[attack] [{idx}] mimicked -> generating ...")
+            mim_res = generate_once(
+                model, tokenizer, mimicked,
+                max_new_tokens=args.max_new_tokens,
+                device=device,
+                temperature=args.temperature,
+                do_sample=do_sample,
+            )
+
+            base_res = None
+            if getattr(args, "also_baseline", False):
+                print(f"[attack] [{idx}] baseline -> generating ...")
+                base_res = generate_once(
+                    model, tokenizer, original,
+                    max_new_tokens=args.max_new_tokens,
+                    device=device,
+                    temperature=args.temperature,
+                    do_sample=do_sample,
+                )
+
+            out_rec = {
+                "idx": idx,
+                "model_type": getattr(args, "model_type", "unknown"),
+                "original_user_content": original,
+                "mimicked_user_content": mimicked,
+                "mimicked_response": mim_res,
+                "baseline_response": base_res,
+            }
+            fout.write(json.dumps(out_rec, ensure_ascii=False) + "\n")
+            fout.flush()
+            n_done += 1
+
+            preview = mim_res["text"][:160].replace("\n", " ")
+            print(f"[attack] [{idx}] mim out (160c): {preview!r}")
+
+    print(f"[attack] done. wrote {n_done} records to {out_path}")
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--model_type", required=True,
@@ -126,73 +199,7 @@ def _default_output(model_type: str) -> Path:
 
 
 def main() -> None:
-    args = parse_args()
-    device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
-    prompts_path = Path(args.prompts) if args.prompts else _default_prompts(args.model_type)
-    out_path = Path(args.output) if args.output else _default_output(args.model_type)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    dtype_map = {
-        "bfloat16": torch.bfloat16,
-        "float16": torch.float16,
-        "float32": torch.float32,
-    }
-    print(f"[attack] loading {args.model} ({args.dtype}) onto {device}")
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        torch_dtype=dtype_map[args.dtype],
-        low_cpu_mem_usage=True,
-    ).to(device)
-    model.eval()
-
-    do_sample = args.temperature > 0.0
-
-    n_done = 0
-    with open(prompts_path, "r", encoding="utf-8") as fin, \
-         open(out_path, "w", encoding="utf-8") as fout:
-        for line in fin:
-            rec = json.loads(line)
-            idx = rec["idx"]
-            mimicked = rec["mimicked"]
-            original = rec["original"]
-
-            print(f"[attack] [{idx}] mimicked -> generating ...")
-            mim_res = generate_once(
-                model, tokenizer, mimicked,
-                max_new_tokens=args.max_new_tokens,
-                device=device,
-                temperature=args.temperature,
-                do_sample=do_sample,
-            )
-
-            base_res = None
-            if args.also_baseline:
-                print(f"[attack] [{idx}] baseline -> generating ...")
-                base_res = generate_once(
-                    model, tokenizer, original,
-                    max_new_tokens=args.max_new_tokens,
-                    device=device,
-                    temperature=args.temperature,
-                    do_sample=do_sample,
-                )
-
-            out_rec = {
-                "idx": idx,
-                "model_type": args.model_type,
-                "original_user_content": original,
-                "mimicked_user_content": mimicked,
-                "mimicked_response": mim_res,
-                "baseline_response": base_res,
-            }
-            fout.write(json.dumps(out_rec, ensure_ascii=False) + "\n")
-            fout.flush()
-            n_done += 1
-
-            preview = mim_res["text"][:160].replace("\n", " ")
-            print(f"[attack] [{idx}] mim out (160c): {preview!r}")
-
-    print(f"[attack] done. wrote {n_done} records to {out_path}")
+    run(parse_args())
 
 
 if __name__ == "__main__":

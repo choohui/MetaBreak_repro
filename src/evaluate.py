@@ -149,6 +149,90 @@ class GuardJudge:
         }
 
 
+def run(args: argparse.Namespace) -> None:
+    """Run evaluation given a pre-built Namespace (no sys.argv parsing).
+
+    Designed to be called directly from ``run.py`` or other orchestrators.
+    """
+    device: str = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+
+    base = _result_dir(args.model_type)
+    responses_path = Path(args.responses) if getattr(args, "responses", None) else base / "responses.jsonl"
+    output_path    = Path(args.output)    if getattr(args, "output", None)    else base / "eval_report.json"
+    per_item_path  = Path(args.per_item)  if getattr(args, "per_item", None)  else base / "eval_per_item.jsonl"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    judge = None
+    if getattr(args, "guard_model", None):
+        judge = GuardJudge(args.guard_model, device, args.dtype)
+
+    rows = []
+    n = 0
+    n_refusal_mim = n_refusal_base = 0
+    n_guard_mim = n_guard_base = 0
+    n_base_seen = 0
+
+    with open(responses_path, "r", encoding="utf-8") as f:
+        for line in f:
+            rec = json.loads(line)
+            mim_text = rec["mimicked_response"]["text"]
+            mim_eval = evaluate_one(mim_text, rec["mimicked_user_content"], judge)
+            base_eval = None
+            if rec.get("baseline_response"):
+                base_text = rec["baseline_response"]["text"]
+                base_eval = evaluate_one(base_text, rec["original_user_content"], judge)
+                n_base_seen += 1
+                if base_eval["refusal_success"]:
+                    n_refusal_base += 1
+                if base_eval["guard_success"]:
+                    n_guard_base += 1
+
+            if mim_eval["refusal_success"]:
+                n_refusal_mim += 1
+            if mim_eval["guard_success"]:
+                n_guard_mim += 1
+
+            rows.append({
+                "idx": rec["idx"],
+                "mimicked_eval": mim_eval,
+                "baseline_eval": base_eval,
+                "mimicked_text": mim_text,
+                "baseline_text": (
+                    rec["baseline_response"]["text"]
+                    if rec.get("baseline_response") else None
+                ),
+            })
+            n += 1
+
+    with open(per_item_path, "w", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+
+    def pct(num, den):
+        return None if den == 0 else round(100.0 * num / den, 2)
+
+    report = {
+        "model_type": args.model_type,
+        "n_total": n,
+        "n_baseline_evaluated": n_base_seen,
+        "guard_model_used": bool(judge is not None),
+        "asr_refusal_keyword_mimicked": pct(n_refusal_mim, n),
+        "asr_refusal_keyword_baseline": pct(n_refusal_base, n_base_seen),
+        "asr_llama_guard_mimicked":  pct(n_guard_mim, n) if judge else None,
+        "asr_llama_guard_baseline":  pct(n_guard_base, n_base_seen) if judge else None,
+    }
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
+
+    print()
+    print("=" * 56)
+    print("Evaluation report")
+    print("=" * 56)
+    for key, val in report.items():
+        print(f"  {key:38s} : {val}")
+    print(f"  (per-item details -> {per_item_path})")
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--model_type", required=True,
@@ -194,92 +278,7 @@ def evaluate_one(text: str, user_content: str, judge: Optional[GuardJudge]):
 
 
 def main() -> None:
-    args = parse_args()
-    device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
-
-    base = _result_dir(args.model_type)
-    responses_path = Path(args.responses) if args.responses else base / "responses.jsonl"
-    output_path   = Path(args.output)    if args.output    else base / "eval_report.json"
-    per_item_path = Path(args.per_item)  if args.per_item  else base / "eval_per_item.jsonl"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    judge = None
-    if args.guard_model:
-        judge = GuardJudge(args.guard_model, device, args.dtype)
-
-    rows = []
-    n = 0
-    n_refusal_mim = n_refusal_base = 0
-    n_guard_mim = n_guard_base = 0
-    n_base_seen = 0
-
-    with open(responses_path, "r", encoding="utf-8") as f:
-        for line in f:
-            rec = json.loads(line)
-            mim_text = rec["mimicked_response"]["text"]
-            mim_eval = evaluate_one(
-                mim_text, rec["mimicked_user_content"], judge
-            )
-            base_eval = None
-            if rec.get("baseline_response"):
-                base_text = rec["baseline_response"]["text"]
-                base_eval = evaluate_one(
-                    base_text, rec["original_user_content"], judge
-                )
-                n_base_seen += 1
-                if base_eval["refusal_success"]:
-                    n_refusal_base += 1
-                if base_eval["guard_success"]:
-                    n_guard_base += 1
-
-            if mim_eval["refusal_success"]:
-                n_refusal_mim += 1
-            if mim_eval["guard_success"]:
-                n_guard_mim += 1
-
-            rows.append({
-                "idx": rec["idx"],
-                "mimicked_eval": mim_eval,
-                "baseline_eval": base_eval,
-                "mimicked_text": mim_text,
-                "baseline_text": (
-                    rec["baseline_response"]["text"]
-                    if rec.get("baseline_response") else None
-                ),
-            })
-            n += 1
-
-    with open(per_item_path, "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
-
-    def pct(num, den):
-        return None if den == 0 else round(100.0 * num / den, 2)
-
-    report = {
-        "model_type": args.model_type,
-        "n_total": n,
-        "n_baseline_evaluated": n_base_seen,
-        "guard_model_used": bool(judge is not None),
-        "asr_refusal_keyword_mimicked": pct(n_refusal_mim, n),
-        "asr_refusal_keyword_baseline": pct(n_refusal_base, n_base_seen),
-        "asr_llama_guard_mimicked": (
-            pct(n_guard_mim, n) if judge else None
-        ),
-        "asr_llama_guard_baseline": (
-            pct(n_guard_base, n_base_seen) if judge else None
-        ),
-    }
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(report, f, indent=2, ensure_ascii=False)
-
-    print()
-    print("=" * 56)
-    print("Evaluation report")
-    print("=" * 56)
-    for key, val in report.items():
-        print(f"  {key:38s} : {val}")
-    print(f"  (per-item details -> {per_item_path})")
+    run(parse_args())
 
 
 if __name__ == "__main__":

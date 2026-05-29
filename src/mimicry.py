@@ -59,44 +59,14 @@ def apply_mimicry(
     return out
 
 
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--model_type", required=True,
-                   help="Family slug. Known: " + ", ".join(known_model_types()))
-    p.add_argument("--model", required=True,
-                   help="Local HF path to the victim model (tokenizer only).")
-    p.add_argument("--prompts", default=None,
-                   help="Path to Q_TM-1_<Model>.txt. Default: "
-                        "prompts/Q_TM-1_<Model>.txt.")
-    p.add_argument("--replacement", default=None,
-                   help="Output of embedding.py. Default: "
-                        "results/<model_type>/replacement.json.")
-    p.add_argument("--output", default=None,
-                   help="Where to write rewritten prompts (jsonl). Default: "
-                        "results/<model_type>/prompt_mimicked.jsonl.")
-    p.add_argument("--n", type=int, default=10,
-                   help="Only process the first N prompts (default 10).")
-    return p.parse_args()
+def run(args: argparse.Namespace) -> None:
+    """Apply mimicry given a pre-built Namespace (no sys.argv parsing).
 
-
-def _default_prompts(model_type: str) -> Path:
-    suffix = model_type[:1].upper() + model_type[1:]
-    return Path(__file__).resolve().parent.parent / "prompts" / f"Q_TM-1_{suffix}.txt"
-
-
-def _default_replacement(model_type: str) -> Path:
-    return Path(__file__).resolve().parent.parent / "results" / model_type / "replacement.json"
-
-
-def _default_output(model_type: str) -> Path:
-    return Path(__file__).resolve().parent.parent / "results" / model_type / "prompt_mimicked.jsonl"
-
-
-def main() -> None:
-    args = parse_args()
-    prompts_path = Path(args.prompts) if args.prompts else _default_prompts(args.model_type)
-    repl_path   = Path(args.replacement) if args.replacement else _default_replacement(args.model_type)
-    out_path    = Path(args.output) if args.output else _default_output(args.model_type)
+    Designed to be called directly from ``run.py`` or other orchestrators.
+    """
+    prompts_path = Path(args.prompts) if getattr(args, "prompts", None) else _default_prompts(args.model_type)
+    repl_path    = Path(args.replacement) if getattr(args, "replacement", None) else _default_replacement(args.model_type)
+    out_path     = Path(args.output) if getattr(args, "output", None) else _default_output(args.model_type)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(repl_path, "r", encoding="utf-8") as f:
@@ -131,9 +101,6 @@ def main() -> None:
             original = prompts[idx]
             rewritten = apply_mimicry(original, special_strs, replacement_strs)
 
-            # Sanity check: does the rewrite still contain any special IDs
-            # after retokenization? If yes, special-token sanitisation
-            # would still have something to flag.
             ids = tokenizer(rewritten, add_special_tokens=False)["input_ids"]
             has_special = any(int(i) in special_set for i in ids)
             if not has_special:
@@ -152,6 +119,43 @@ def main() -> None:
     print(f"[mimicry] wrote {n} records to {out_path}")
     print(f"[mimicry] clean (no special IDs after retokenization): "
           f"{n_clean}/{n}")
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--model_type", required=True,
+                   help="Family slug. Known: " + ", ".join(known_model_types()))
+    p.add_argument("--model", required=True,
+                   help="Local HF path to the victim model (tokenizer only).")
+    p.add_argument("--prompts", default=None,
+                   help="Path to Q_TM-1_<Model>.txt. Default: "
+                        "prompts/Q_TM-1_<Model>.txt.")
+    p.add_argument("--replacement", default=None,
+                   help="Output of embedding.py. Default: "
+                        "results/<model_type>/replacement.json.")
+    p.add_argument("--output", default=None,
+                   help="Where to write rewritten prompts (jsonl). Default: "
+                        "results/<model_type>/prompt_mimicked.jsonl.")
+    p.add_argument("--n", type=int, default=10,
+                   help="Only process the first N prompts (default 10).")
+    return p.parse_args()
+
+
+def _default_prompts(model_type: str) -> Path:
+    suffix = model_type[:1].upper() + model_type[1:]
+    return Path(__file__).resolve().parent.parent / "prompts" / f"Q_TM-1_{suffix}.txt"
+
+
+def _default_replacement(model_type: str) -> Path:
+    return Path(__file__).resolve().parent.parent / "results" / model_type / "replacement.json"
+
+
+def _default_output(model_type: str) -> Path:
+    return Path(__file__).resolve().parent.parent / "results" / model_type / "prompt_mimicked.jsonl"
+
+
+def main() -> None:
+    run(parse_args())
 
 
 if __name__ == "__main__":
