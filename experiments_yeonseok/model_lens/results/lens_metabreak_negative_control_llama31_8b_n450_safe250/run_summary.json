@@ -1,0 +1,117 @@
+{
+  "model": "/gallery_tate/yeonseok.jung/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "model_type": "llama",
+  "template": {
+    "model_type": "llama",
+    "assistant_header": "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+    "literal_header_ids": [
+      128009,
+      128006,
+      78191,
+      128007,
+      271
+    ],
+    "target_ids": {
+      "eot": 128009,
+      "start_header": 128006,
+      "end_header": 128007
+    },
+    "target_token_strs": [
+      "<|eot_id|>",
+      "<|start_header_id|>",
+      "<|end_header_id|>"
+    ],
+    "fixed_ids_by_pos": {
+      "2": 78191,
+      "4": 271
+    },
+    "replace_positions": [
+      0,
+      1,
+      3
+    ],
+    "role_offsets": {
+      "eot": 0,
+      "start_header": 1,
+      "end_header": 3
+    },
+    "auto_detected": false
+  },
+  "n_attack_samples": 450,
+  "n_benign_samples": 250,
+  "query_window": 3,
+  "n_layers_including_embedding": 33,
+  "files": {
+    "sample_spans": "experiments_yeonseok/model_lens/results/lens_metabreak_negative_control_llama31_8b_n450_safe250/sample_spans.jsonl",
+    "layer_metrics_per_sample": "experiments_yeonseok/model_lens/results/lens_metabreak_negative_control_llama31_8b_n450_safe250/layer_metrics_per_sample.jsonl",
+    "layer_metrics_summary_json": "experiments_yeonseok/model_lens/results/lens_metabreak_negative_control_llama31_8b_n450_safe250/layer_metrics_summary.json",
+    "layer_metrics_summary_csv": "experiments_yeonseok/model_lens/results/lens_metabreak_negative_control_llama31_8b_n450_safe250/layer_metrics_summary.csv",
+    "benign_lens": "experiments_yeonseok/model_lens/results/lens_metabreak_negative_control_llama31_8b_n450_safe250/benign_lens.jsonl"
+  },
+  "last_layer": {
+    "layer": 32,
+    "n_samples": 450,
+    "n_mimicked_spans": 3.0,
+    "n_literal_spans_total": 4.0,
+    "n_aligned_spans": 3.0,
+    "eot_cos_to_literal_hidden_mean": 0.203679,
+    "eot_l2_to_literal_hidden_mean": 183.833369,
+    "eot_special_vs_own_embedding_cos_margin_mean": -0.027341,
+    "eot_hidden_norm_mean": 143.165218,
+    "start_header_cos_to_literal_hidden_mean": 0.179716,
+    "start_header_l2_to_literal_hidden_mean": 187.52781,
+    "start_header_special_vs_own_embedding_cos_margin_mean": -0.038818,
+    "start_header_hidden_norm_mean": 144.858708,
+    "end_header_cos_to_literal_hidden_mean": 0.301628,
+    "end_header_l2_to_literal_hidden_mean": 172.670534,
+    "end_header_special_vs_own_embedding_cos_margin_mean": -0.023598,
+    "end_header_hidden_norm_mean": 144.587957,
+    "mimicked_post_span_attention_mass_mean": 0.091449,
+    "literal_post_span_attention_mass_mean": 0.086981,
+    "post_span_attention_mass_delta_mim_minus_literal": 0.004468
+  },
+  "mid_layer": {
+    "layer": 16,
+    "n_samples": 450,
+    "n_mimicked_spans": 3.0,
+    "n_literal_spans_total": 4.0,
+    "n_aligned_spans": 3.0,
+    "eot_cos_to_literal_hidden_mean": 0.583858,
+    "eot_l2_to_literal_hidden_mean": 8.159778,
+    "eot_special_vs_own_embedding_cos_margin_mean": -0.084983,
+    "eot_hidden_norm_mean": 9.633876,
+    "start_header_cos_to_literal_hidden_mean": 0.223679,
+    "start_header_l2_to_literal_hidden_mean": 10.994837,
+    "start_header_special_vs_own_embedding_cos_margin_mean": -0.116743,
+    "start_header_hidden_norm_mean": 9.353365,
+    "end_header_cos_to_literal_hidden_mean": 0.414354,
+    "end_header_l2_to_literal_hidden_mean": 9.080275,
+    "end_header_special_vs_own_embedding_cos_margin_mean": -0.092616,
+    "end_header_hidden_norm_mean": 9.042138,
+    "mimicked_post_span_attention_mass_mean": 0.100534,
+    "literal_post_span_attention_mass_mean": 0.098065,
+    "post_span_attention_mass_delta_mim_minus_literal": 0.002469
+  },
+  "first_layer": {
+    "layer": 0,
+    "n_samples": 450,
+    "n_mimicked_spans": 3.0,
+    "n_literal_spans_total": 4.0,
+    "n_aligned_spans": 3.0,
+    "eot_cos_to_literal_hidden_mean": 0.064709,
+    "eot_l2_to_literal_hidden_mean": 0.496801,
+    "eot_special_vs_own_embedding_cos_margin_mean": -0.935292,
+    "eot_hidden_norm_mean": 0.497474,
+    "start_header_cos_to_literal_hidden_mean": 0.086995,
+    "start_header_l2_to_literal_hidden_mean": 0.579465,
+    "start_header_special_vs_own_embedding_cos_margin_mean": -0.913006,
+    "start_header_hidden_norm_mean": 0.581427,
+    "end_header_cos_to_literal_hidden_mean": 0.040856,
+    "end_header_l2_to_literal_hidden_mean": 0.584306,
+    "end_header_special_vs_own_embedding_cos_margin_mean": -0.959145,
+    "end_header_hidden_norm_mean": 0.584753,
+    "mimicked_post_span_attention_mass_mean": null,
+    "literal_post_span_attention_mass_mean": null,
+    "post_span_attention_mass_delta_mim_minus_literal": null
+  }
+}

@@ -1,0 +1,22 @@
+$ /gallery_tate/yeonseok.jung/miniconda3/envs/metabreak/bin/python3 src/embedding.py --model_type llama --model /gallery_tate/yeonseok.jung/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659 --output /gallery_tate/yeonseok.jung/MetaBreak_repro/experiments_yeonseok/results/l2_guard_llama31_8b_n450/common/replacement.json --topk 200 --dtype bfloat16
+
+[embedding] loading tokenizer + model from /gallery_tate/yeonseok.jung/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659
+[embedding] model_type        : llama (auto_detected=False)
+[embedding] assistant_header  : '<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n'
+[embedding] target_token_strs : ['<|eot_id|>', '<|start_header_id|>', '<|end_header_id|>']
+[embedding] target_token_ids  : [128009, 128006, 128007]
+[embedding] fixed (pos/str)   : [(2, "'assistant'"), (4, "'\\n\\n'")]
+[embedding] expected_n_tokens : 5
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 2/4 [00:00<00:00, 10.83it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 11.33it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 11.24it/s]
+[embedding] embedding shape: (128256, 4096)
+[embedding] searching best 3-tuple with topk=200 ...
+[embedding] filtered candidates: 24/200 (dropped 176 special/added tokens)
+[embedding] filtered candidates: 30/200 (dropped 170 special/added tokens)
+[embedding] filtered candidates: 25/200 (dropped 175 special/added tokens)
+  new best: ids=[115614, 182, 182] strs=["'ujících'", "'�'", "'�'"] L2_sum=1.3243
+[embedding] best tuple ids      : [115614, 182, 182]
+[embedding] best tuple strings  : ['ujících', '�', '�']
+[embedding] L2-sum              : 1.3243
+[embedding] saved to            : /gallery_tate/yeonseok.jung/MetaBreak_repro/experiments_yeonseok/results/l2_guard_llama31_8b_n450/common/replacement.json
+
+[runner] exit_code=0 elapsed_seconds=7.66

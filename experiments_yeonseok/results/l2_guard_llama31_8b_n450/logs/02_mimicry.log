@@ -1,0 +1,10 @@
+$ /gallery_tate/yeonseok.jung/miniconda3/envs/metabreak/bin/python3 src/mimicry.py --model_type llama --model /gallery_tate/yeonseok.jung/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659 --prompts /gallery_tate/yeonseok.jung/MetaBreak_repro/prompts/Q_TM-1_Llama.txt --replacement /gallery_tate/yeonseok.jung/MetaBreak_repro/experiments_yeonseok/results/l2_guard_llama31_8b_n450/common/replacement.json --output /gallery_tate/yeonseok.jung/MetaBreak_repro/experiments_yeonseok/results/l2_guard_llama31_8b_n450/common/prompt_mimicked.jsonl --n 450
+
+[mimicry] model_type=llama (replacement.json says 'llama')
+[mimicry] replacement: [115614, 182, 182] (["'ujících'", "'�'", "'�'"])
+[mimicry] specials   : ['<|eot_id|>', '<|start_header_id|>', '<|end_header_id|>']
+[mimicry] loaded 450 prompts from /gallery_tate/yeonseok.jung/MetaBreak_repro/prompts/Q_TM-1_Llama.txt; rewriting first 450
+[mimicry] wrote 450 records to /gallery_tate/yeonseok.jung/MetaBreak_repro/experiments_yeonseok/results/l2_guard_llama31_8b_n450/common/prompt_mimicked.jsonl
+[mimicry] clean (no special IDs after retokenization): 450/450
+
+[runner] exit_code=0 elapsed_seconds=6.01

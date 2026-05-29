@@ -1,0 +1,10 @@
+{
+  "model_type": "llama",
+  "n_total": 450,
+  "n_baseline_evaluated": 450,
+  "guard_model_used": true,
+  "asr_refusal_keyword_mimicked": 0.0,
+  "asr_refusal_keyword_baseline": 0.0,
+  "asr_llama_guard_mimicked": 0.0,
+  "asr_llama_guard_baseline": 0.0
+}

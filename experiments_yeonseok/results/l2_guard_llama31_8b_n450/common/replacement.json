@@ -1,0 +1,43 @@
+{
+  "model_type": "llama",
+  "auto_detected": false,
+  "assistant_header": "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+  "expected_n_tokens": 5,
+  "target_token_ids": [
+    128009,
+    128006,
+    128007
+  ],
+  "target_token_strs": [
+    "<|eot_id|>",
+    "<|start_header_id|>",
+    "<|end_header_id|>"
+  ],
+  "fixed_positions": [
+    2,
+    4
+  ],
+  "fixed_strs": [
+    "assistant",
+    "\n\n"
+  ],
+  "replace_positions": [
+    0,
+    1,
+    3
+  ],
+  "best_triple_ids": [
+    115614,
+    182,
+    182
+  ],
+  "best_triple_decoded": [
+    "ujících",
+    "�",
+    "�"
+  ],
+  "best_similarity_l2_sum": 1.3242975436151028,
+  "topk": 200,
+  "n_evaluated": 18000,
+  "n_kept_5tok": 2028
+}

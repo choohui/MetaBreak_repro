@@ -1,13 +1,0 @@
-$ /gallery_tate/yeonseok.jung/miniconda3/envs/metabreak/bin/python embedding.py --model /gallery_tate/yeonseok.jung/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659 --output /gallery_tate/yeonseok.jung/MetaBreak_repro/experiments_yeonseok/results/l2_guard_llama31_8b_n10/common/replacement.json --topk 200 --dtype bfloat16
-
-[embedding] loading tokenizer + model from /gallery_tate/yeonseok.jung/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.12s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.15s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.00s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.46it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:03<00:00,  1.20it/s]
-[embedding] embedding shape: (128256, 4096)
-[embedding] searching best (i,j,k) with topk=200 ...
-  new best: ids=[115614, 182, 182] strs=["'ujících'", "'�'", "'�'"] L2_sum=1.3243
-[embedding] best triple ids     : [115614, 182, 182]
-[embedding] best triple strings : ['ujících', '�', '�']
-[embedding] L2-sum              : 1.3243
-[embedding] saved to            : /gallery_tate/yeonseok.jung/MetaBreak_repro/experiments_yeonseok/results/l2_guard_llama31_8b_n10/common/replacement.json
-
-[runner] exit_code=0 elapsed_seconds=17.05
