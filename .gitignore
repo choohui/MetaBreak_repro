@@ -5,4 +5,3 @@ __pycache__/
 .claude/
 tokenlist.txt
 prompts/MetaBreak_data/
-experiments_hc_1/
