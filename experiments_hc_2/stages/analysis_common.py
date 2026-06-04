@@ -1,4 +1,4 @@
-"""Shared analysis helpers for the threshold stages (05 and 06).
+﻿"""Shared analysis helpers for the analysis stages (04–07).
 
 Loads the stage-03 artifacts, builds the 5 measurement-signal matrices for an
 arbitrary row subset, and evaluates single-threshold detection per signal/layer
@@ -11,24 +11,54 @@ from pathlib import Path
 
 import numpy as np
 
-from experiments_hc_1.core import metrics
-from experiments_hc_1.core.features import (
+from experiments_hc_2.core import metrics
+from experiments_hc_2.core.features import (
     ALL_SIGNALS, COS_SIGNAL, SCALAR_SIGNALS,
     cos_to_ref_matrix, ref_centroids_from, signal_matrix,
 )
-from experiments_hc_1.core.labels import CAT_A, CAT_TO_LETTER, NEGATIVE_CATS, POSITIVE_CATS
-from experiments_hc_1.core import io
+from experiments_hc_2.core.labels import CAT_A, CAT_TO_LETTER, NEGATIVE_CATS, POSITIVE_CATS
+from experiments_hc_2.core import io
 
 
-def load_artifacts(out_dir: Path):
-    rows = io.read_jsonl(out_dir / "tokens.jsonl")
-    hidden = np.load(out_dir / "features.npz")["hidden"]
+def _is_success(r: dict, judge: str) -> bool:
+    """Per-prompt attack success under the chosen ASR judge (hc_2).
+
+    keyword -> refusal heuristic; guard -> Llama-Guard (falls back to keyword if
+    the guard verdict is absent); both -> keyword OR guard.
+    """
+    ref = bool(r.get("refusal_success"))
+    grd = r.get("guard_success")
+    if judge == "keyword":
+        return ref
+    if judge == "guard":
+        return bool(grd) if grd is not None else ref
+    return ref or bool(grd)               # "both"
+
+
+def success_set(out_dir: Path, judge: str = "keyword") -> set[int]:
+    """sample_index set of prompts whose attack succeeded under ``judge``."""
     asr_path = out_dir / "asr.jsonl"
     success: set[int] = set()
     if asr_path.exists():
         for r in io.read_jsonl(asr_path):
-            if r.get("refusal_success") or r.get("guard_success"):
+            if _is_success(r, judge):
                 success.add(int(r["sample_index"]))
+    return success
+
+
+def load_artifacts(out_dir: Path, judge: str = "keyword", balanced: bool = False):
+    """Load stage-03 artifacts. ``rows`` is the FULL token set; with
+    ``balanced=True`` it is filtered to the equal-per-type subset (the §2 view).
+    ``hidden`` stays full and is indexed by ``row_id`` either way, so a balanced
+    row's ``hidden[row_id]`` is still correct. The §3/§4 gate stages use the full
+    (raw) set so the per-prompt token distribution is realistic."""
+    rows = io.read_jsonl(out_dir / "tokens.jsonl")
+    hidden = np.load(out_dir / "features.npz")["hidden"]
+    if balanced:
+        summary = io.read_json(out_dir / "extract_summary.json")
+        keep = set(summary.get("balanced_row_ids", [r["row_id"] for r in rows]))
+        rows = [r for r in rows if r["row_id"] in keep]
+    success = success_set(out_dir, judge)
     return rows, hidden, success
 
 

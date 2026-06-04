@@ -1,4 +1,4 @@
-"""Stage 04 (Main.md §2.3) — logistic-regression probe + cosine analysis.
+﻿"""Stage 04 (Main.md §2.3) — logistic-regression probe + cosine analysis.
 
 For each ``pos_offset`` and each layer:
   * logistic-regression probe on the FULL hidden vector
@@ -24,15 +24,17 @@ from pathlib import Path
 
 import numpy as np
 
-from experiments_hc_1.core import io
+from experiments_hc_2.core import io
 
 HERE = Path(__file__).resolve().parent
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
+REPO_ROOT = HERE.parent.parent  # repro_mb (makes experiments_hc_2 importable)
+for _p in (str(REPO_ROOT), str(HERE)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from experiments_hc_1.config import ExpConfig, config_from_args, make_stage_parser  # noqa: E402
-from experiments_hc_1.core import metrics  # noqa: E402
-from experiments_hc_1.core.labels import (  # noqa: E402
+from experiments_hc_2.config import ExpConfig, config_from_args, make_stage_parser  # noqa: E402
+from experiments_hc_2.core import metrics  # noqa: E402
+from experiments_hc_2.core.labels import (  # noqa: E402
     CAT_A, LETTER_TO_CAT, NEGATIVE_CATS, POSITIVE_CATS, ALL_CATEGORIES,
 )
 
@@ -75,6 +77,7 @@ def _analyze_offset(cfg: ExpConfig, rows: list[dict], hidden: np.ndarray, offset
     y = np.array([1 if c in POSITIVE_CATS else (0 if c in NEGATIVE_CATS else -1)
                   for c in cats])
     probe_mask = y >= 0
+    samples_arr = np.array(samples)               # prompt id per row (for GroupKFold)
 
     per_layer: list[dict] = []
     cosine_pairs: dict[str, dict] = {f"{a}-{b}": {"centroid": [], "per_prompt": []}
@@ -95,14 +98,21 @@ def _analyze_offset(cfg: ExpConfig, rows: list[dict], hidden: np.ndarray, offset
                 row[f"{c[0]}__mean_norm"] = round(
                     float(np.linalg.norm(Hl[cat_rows[c]], axis=1).mean()), 5)
 
-        # logreg probe
+        # logreg probe — naive (per-token CV) AND prompt-level (GroupKFold).
+        # hc_2 reports both so the leakage-inflated AUC (hc_1 limitation #3) is
+        # visible; the best layer is chosen by the honest grouped AUC.
         if probe_mask.sum() > 4:
-            pr = metrics.probe_layer(Hl[probe_mask], y[probe_mask])
-            row["probe_auc"] = pr["auc"]
-            row["probe_balanced_acc"] = pr["balanced_acc"]
-            row["probe_method"] = pr["method"]
-            if pr["auc"] == pr["auc"] and pr["auc"] > best_auc:
-                best_auc, best_layer = pr["auc"], l
+            xl, yl = Hl[probe_mask], y[probe_mask]
+            pr_naive = metrics.probe_layer(xl, yl)
+            pr_group = metrics.probe_layer(xl, yl, groups=samples_arr[probe_mask])
+            row["probe_auc"] = pr_naive["auc"]                # naive (kept name)
+            row["probe_auc_grouped"] = pr_group["auc"]        # honest, leakage-free
+            row["probe_balanced_acc"] = pr_naive["balanced_acc"]
+            row["probe_balanced_acc_grouped"] = pr_group["balanced_acc"]
+            row["probe_method"] = pr_naive["method"]
+            sel = pr_group["auc"] if pr_group["auc"] == pr_group["auc"] else pr_naive["auc"]
+            if sel == sel and sel > best_auc:
+                best_auc, best_layer = sel, l
 
         # cosine pairs
         for a, b in PAIRS:
@@ -135,7 +145,10 @@ def _analyze_offset(cfg: ExpConfig, rows: list[dict], hidden: np.ndarray, offset
         "dim": dim,
         "best_probe_layer": best_layer,
         "best_probe_auc": best_auc,
+        "best_probe_auc_basis": "grouped (prompt-level GroupKFold)",
         "probe_labels": "attack(B,D)=1 vs benign(C,E,F,G)=0",
+        "probe_note": "probe_auc = naive per-token CV (may leak); "
+                      "probe_auc_grouped = prompt-level GroupKFold (honest).",
         "per_layer": per_layer,
     }
     pos_dir = cfg.pos_dir(offset)
@@ -163,7 +176,13 @@ def _pca_2d(x: np.ndarray) -> np.ndarray:
 
 
 def run(cfg: ExpConfig, lm=None) -> dict:  # lm unused (model-free stage)
+    # §2 probe/cosine use the BALANCED subset (equal per-type counts). hidden is
+    # full and indexed by row_id, so balanced rows index it directly.
+    summary = io.read_json(cfg.out_dir / "extract_summary.json")
+    keep = set(summary.get("balanced_row_ids", []))
     rows = io.read_jsonl(cfg.out_dir / "tokens.jsonl")
+    if keep:
+        rows = [r for r in rows if r["row_id"] in keep]
     hidden = np.load(cfg.out_dir / "features.npz")["hidden"]
     if hidden.size == 0:
         raise SystemExit("[04] features.npz has no hidden cube (was --no_hidden used?).")

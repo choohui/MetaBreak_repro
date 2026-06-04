@@ -1,4 +1,4 @@
-"""Chat-template metadata + assistant-header span detection.
+﻿"""Chat-template metadata + assistant-header span detection.
 
 Reuses ``src.model_configs.resolve_config`` for the chat boundary; everything
 else is local (no dependency on other ``experiments_*`` folders).

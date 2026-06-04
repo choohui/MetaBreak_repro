@@ -1,18 +1,19 @@
 """One-shot orchestrator — load the model ONCE and run the selected stages.
 
-Stages (Main.md sections):
+Stages (Main.md sections) — the full campaign from "what signal" to a tested defense:
     00  embedding analysis            (§1)   [needs model]
-    01  build 7-type prompts          (§2.1)
-    02  run ASR (B/D/F)               (§2.1)  [needs model]
-    03  extract representations       (§2.2)  [needs model]
-    04  cosine + logreg analysis      (§2.3)
-    05  single-threshold defense      (§2.3)
-    06  sink-range reduction          (§3)            <- runs together with §2
+    01  build 7-type prompts          (§2.1)  C carriers integrated from the start
+    02  run ASR (B/D/F)               (§2.1)  [needs model]  keyword / guard judge
+    03  extract representations       (§2.2)  [needs model]  balanced + raw census
+    04  probe + cosine                (§2.3)  naive + prompt-level (GroupKFold) AUC
+    05  single-threshold defense      (§2.3)  + operating_points.json
+    06  sink-filter sweep             (§3)    1st-stage gate effectiveness
+    07  cascade defense               (§4)    2-stage detector, block-rate / FPR / ASR
 
-Examples:
-    python run_all.py --model /path/to/Llama-3.1-8B-Instruct --n 10
-    python run_all.py --smoke --n 3            # model-free smoke run
-    python run_all.py --model ... --stages 03,04,05
+Run as a module from ``repro_mb`` (the directory above this package):
+    python -m experiments_hc_2.run_all --model /path/to/Llama-3.1-8B-Instruct --n 150
+    python -m experiments_hc_2.run_all --smoke --n 3            # model-free smoke run
+    python -m experiments_hc_2.run_all --model ... --stages 03,04,05
 """
 
 from __future__ import annotations
@@ -23,27 +24,31 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-HERE = Path(__file__).resolve().parent
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
+HERE = Path(__file__).resolve().parent          # .../repro_mb/experiments_hc_2
+REPO_ROOT = HERE.parent                          # .../repro_mb
+for _p in (str(REPO_ROOT), str(HERE)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from experiments_hc_1.config import ALL_STAGES, config_from_args, get_model, make_stage_parser  # noqa: E402
+from experiments_hc_2.config import ALL_STAGES, config_from_args, get_model, make_stage_parser  # noqa: E402
 
+STAGES_DIR = HERE / "stages"
 STAGE_FILES = {
     "00": "00_embedding_analysis.py",
     "01": "01_build_prompts.py",
     "02": "02_run_asr.py",
     "03": "03_extract_representations.py",
-    "04": "04_analyze_cosine_logreg.py",
+    "04": "04_probe_cosine.py",
     "05": "05_threshold_defense.py",
-    "06": "06_sink_range.py",
+    "06": "06_sink_filter.py",
+    "07": "07_cascade_defense.py",
 }
 NEEDS_MODEL = {"00", "02", "03"}
 
 
 def load_stage(num: str):
-    path = HERE / STAGE_FILES[num]
-    spec = importlib.util.spec_from_file_location(f"hc1_stage_{num}", path)
+    path = STAGES_DIR / STAGE_FILES[num]
+    spec = importlib.util.spec_from_file_location(f"hc2_stage_{num}", path)
     mod = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
     spec.loader.exec_module(mod)

@@ -1,4 +1,4 @@
-"""Stage 03 (Main.md §2.2/2.3) — capture internal representations per prompt.
+﻿"""Stage 03 (Main.md §2.2/2.3) — capture internal representations per prompt.
 
 For every prompt: one forward pass -> sink scores -> 7-type position labeling ->
 for each labeled position (and pos_offset) record the per-layer scalar signals
@@ -19,17 +19,21 @@ import numpy as np
 from tqdm import tqdm
 
 HERE = Path(__file__).resolve().parent
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
+REPO_ROOT = HERE.parent.parent  # repro_mb (makes experiments_hc_2 importable)
+for _p in (str(REPO_ROOT), str(HERE)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from experiments_hc_1.config import ExpConfig, config_from_args, get_model, make_stage_parser  # noqa: E402
-from experiments_hc_1.core import io  # noqa: E402
-from experiments_hc_1.core import benign_inject  # noqa: E402
-from experiments_hc_1.core.capture import forward_capture, forward_capture_ids, sink_scores  # noqa: E402
-from experiments_hc_1.core.features import CaptureSignals, hidden_vector  # noqa: E402
-from experiments_hc_1.core.labeling import label_positions_for_variant, sample_ordinary_positions  # noqa: E402
-from experiments_hc_1.core.labels import CAT_A, CAT_C, CAT_G, CAT_TO_LETTER  # noqa: E402
-from experiments_hc_1.core.template import template_prefix_suffix_lengths  # noqa: E402
+from experiments_hc_2.config import ExpConfig, config_from_args, get_model, make_stage_parser  # noqa: E402
+from experiments_hc_2.core import io  # noqa: E402
+from experiments_hc_2.core import benign_inject  # noqa: E402
+from experiments_hc_2.core.capture import forward_capture, forward_capture_ids, sink_scores  # noqa: E402
+from experiments_hc_2.core.features import CaptureSignals, hidden_vector  # noqa: E402
+from experiments_hc_2.core.labeling import label_positions_for_variant, sample_ordinary_positions  # noqa: E402
+from experiments_hc_2.core.labels import (  # noqa: E402
+    CAT_A, CAT_B, CAT_C, CAT_D, CAT_E, CAT_F, CAT_G, CAT_TO_LETTER,
+)
+from experiments_hc_2.core.template import template_prefix_suffix_lengths  # noqa: E402
 
 
 def _even_subset(items: list, k: int) -> list:
@@ -51,18 +55,39 @@ def _cap_category(labels: dict[int, str], category: str, max_per: int) -> dict[i
     return {p: c for p, c in labels.items() if c != category or p in keep}
 
 
-def _apply_cap(token_rows: list[dict], hidden_cubes: list, cap: int, store_hidden: bool):
-    """Evenly downsample each (category, pos_offset) group to <= ``cap`` rows."""
+def _balanced_keep_ids(token_rows: list[dict], cap: int) -> list[int]:
+    """row_ids of the balanced subset: each (category, pos_offset) group evenly
+    downsampled to <= ``cap``. The FULL set is still saved; this is just the index
+    of the balanced view (used by §2 stages 04/05). The gate stages (06/07) use
+    the full set so the per-prompt token distribution stays realistic."""
     groups: dict[tuple, list[int]] = {}
-    for i, r in enumerate(token_rows):
-        groups.setdefault((r["category"], r["pos_offset"]), []).append(i)
+    for r in token_rows:
+        groups.setdefault((r["category"], r["pos_offset"]), []).append(r["row_id"])
     keep: set[int] = set()
-    for idxs in groups.values():
-        keep.update(_even_subset(idxs, cap))
-    keep_sorted = sorted(keep)
-    new_rows = [token_rows[i] for i in keep_sorted]
-    new_hidden = [hidden_cubes[i] for i in keep_sorted] if store_hidden else hidden_cubes
-    return new_rows, new_hidden
+    for ids in groups.values():
+        keep.update(_even_subset(sorted(ids), cap))
+    return sorted(keep)
+
+
+def _balanced_cap(token_rows: list[dict]) -> int | None:
+    """Auto-cap = the smallest non-empty (category, pos_offset) group among the
+    defense types B..G (hc_2 fix for the type-count imbalance, Main.md §2.1).
+
+    Capping every group to this value makes all analyzed types equal-sized for
+    the main (balanced) dataset. A (reference) is included so it does not dominate.
+    """
+    from collections import Counter
+    balance_cats = {CAT_B, CAT_C, CAT_D, CAT_E, CAT_F, CAT_G}
+    counts = Counter((r["category"], r["pos_offset"]) for r in token_rows)
+    vals = [n for (cat, _off), n in counts.items() if cat in balance_cats and n > 0]
+    return min(vals) if vals else None
+
+
+def _census(rows: list[dict]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for r in rows:
+        out[r["category"]] = out.get(r["category"], 0) + 1
+    return out
 
 
 def _encode_ids(tokenizer, word: str) -> set[int]:
@@ -149,18 +174,28 @@ def run(cfg: ExpConfig, lm=None) -> dict:
                 if store_hidden:
                     hidden_cubes.append(hidden_vector(cap, pos))
 
-    # Global per-(category, pos_offset) cap: evenly downsample over-represented
-    # types (chiefly A and G) so we do not keep/analyze every token.
+    # Assign row_id over the FULL set; the hidden cube is in the same order.
+    for i, r in enumerate(token_rows):
+        r["row_id"] = i
+    raw_census = _census(token_rows)
+
+    # Balancing produces only an INDEX into the full set (the balanced view used
+    # by §2 stages 04/05). The full set is always saved so the §3/§4 sink gate
+    # (stages 06/07) sees a realistic body-dominated per-prompt distribution
+    # rather than a pre-thinned one (validity fix; see README "balanced vs raw").
     if cfg.cap_per_type is not None:
-        token_rows, hidden_cubes = _apply_cap(
-            token_rows, hidden_cubes, cfg.cap_per_type, store_hidden)
+        cap, cap_mode = cfg.cap_per_type, "explicit"
+    elif cfg.balanced:
+        cap, cap_mode = _balanced_cap(token_rows), "balanced"
+    else:
+        cap, cap_mode = None, "none"
+    if cap is not None:
+        balanced_row_ids = _balanced_keep_ids(token_rows, cap)
+    else:
+        balanced_row_ids = [r["row_id"] for r in token_rows]
+    balanced_census = _census([token_rows[i] for i in balanced_row_ids])
 
-    census: dict[str, int] = {}
-    for new_id, r in enumerate(token_rows):
-        r["row_id"] = new_id                      # re-index to match hidden cube
-        census[r["category"]] = census.get(r["category"], 0) + 1
-
-    io.write_jsonl(cfg.out_dir / "tokens.jsonl", token_rows)
+    io.write_jsonl(cfg.out_dir / "tokens.jsonl", token_rows)   # FULL (raw) set
     if store_hidden and hidden_cubes:
         hidden = np.stack(hidden_cubes, axis=0)
     else:
@@ -168,16 +203,23 @@ def run(cfg: ExpConfig, lm=None) -> dict:
     np.savez_compressed(cfg.out_dir / "features.npz", hidden=hidden)
 
     summary = {
-        "n_rows": len(token_rows),
+        "n_rows": len(token_rows),                 # full set
+        "n_balanced_rows": len(balanced_row_ids),
         "n_hidden_layers": int(n_hidden_layers),   # L+1
         "n_attn_layers": int(n_attn_layers),       # L
         "hidden_dim": int(hidden.shape[2]) if hidden.ndim == 3 and hidden.size else 0,
         "stored_hidden": bool(store_hidden),
-        "census": census,
+        "cap_mode": cap_mode,
+        "cap_applied": cap,
+        "raw_census": raw_census,                  # FULL set (gate stages use this)
+        "census": balanced_census,                 # balanced view (§2 probe/threshold)
+        "balanced_row_ids": balanced_row_ids,      # index of the balanced subset
         "pos_offsets": cfg.pos_offsets,
     }
     io.write_json(cfg.out_dir / "extract_summary.json", summary)
-    print(f"[03] {len(token_rows)} token rows; hidden={hidden.shape}; census={census}")
+    print(f"[03] {len(token_rows)} full token rows; balanced subset "
+          f"{len(balanced_row_ids)} (cap_mode={cap_mode}, cap={cap}); hidden={hidden.shape}"
+          f"\n[03] raw_census={raw_census}\n[03] balanced_census={balanced_census}")
     return summary
 
 

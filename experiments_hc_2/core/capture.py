@@ -1,4 +1,4 @@
-"""Single-forward-pass capture of all internal signals + attention sink score.
+﻿"""Single-forward-pass capture of all internal signals + attention sink score.
 
 For one user-turn prompt we capture, per token position:
   * hidden states from every layer (incl. the embedding layer),

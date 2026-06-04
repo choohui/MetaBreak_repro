@@ -1,4 +1,4 @@
-
+﻿
 """Stage 02 (Main.md §2.1) — run attack prompts through the model, label ASR.
 
 Generates responses for the attack-bearing variants (B malicious_mimicry,
@@ -19,19 +19,21 @@ from pathlib import Path
 from tqdm import tqdm
 
 HERE = Path(__file__).resolve().parent
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
+REPO_ROOT = HERE.parent.parent  # repro_mb (makes experiments_hc_2 importable)
+for _p in (str(REPO_ROOT), str(HERE)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from experiments_hc_1.config import ExpConfig, config_from_args, get_model, make_stage_parser  # noqa: E402
-from experiments_hc_1.core import io  # noqa: E402
-from experiments_hc_1.core.labels import ASR_VARIANTS  # noqa: E402
+from experiments_hc_2.config import ExpConfig, config_from_args, get_model, make_stage_parser  # noqa: E402
+from experiments_hc_2.core import io  # noqa: E402
+from experiments_hc_2.core.labels import ASR_VARIANTS  # noqa: E402
 
 from src.evaluate import GuardJudge, evaluate_one  # noqa: E402
 
 
 def _generate(lm, cfg: ExpConfig, text: str) -> dict:
     if getattr(lm, "is_mock", False):
-        from experiments_hc_1.core.mock import mock_generate
+        from experiments_hc_2.core.mock import mock_generate
         return mock_generate(lm, text)
     from src.attack import generate_once
     return generate_once(
@@ -51,8 +53,13 @@ def run(cfg: ExpConfig, lm=None) -> dict:
 
     lm = get_model(cfg, lm)
     judge = None
-    if cfg.guard_model and not getattr(lm, "is_mock", False):
-        judge = GuardJudge(cfg.guard_model, lm.device, cfg.dtype)
+    if cfg.asr_judge in ("guard", "both"):
+        if getattr(lm, "is_mock", False):
+            print("[02] asr_judge wants Llama-Guard but model is mock; keyword only.")
+        elif not cfg.guard_model:
+            print("[02] asr_judge wants Llama-Guard but --guard_model unset; keyword only.")
+        else:
+            judge = GuardJudge(cfg.guard_model, lm.device, cfg.dtype)
 
     rows: list[dict] = []
     for r in tqdm(targets, desc="[02] ASR"):
@@ -76,7 +83,9 @@ def run(cfg: ExpConfig, lm=None) -> dict:
         "n_generated_tokens", "response_text", "text",
     ])
 
-    summary: dict = {"guard_model_used": bool(judge is not None), "per_variant": {}}
+    summary: dict = {"asr_judge_mode": cfg.asr_judge,
+                     "guard_model_used": bool(judge is not None),
+                     "per_variant": {}}
     for v in ASR_VARIANTS:
         vr = [r for r in rows if r["variant"] == v]
         if not vr:

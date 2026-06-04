@@ -1,4 +1,4 @@
-"""Stage 05 (Main.md §2.3) — single-threshold defense feasibility per signal.
+﻿"""Stage 05 (Main.md §2.3) — single-threshold defense feasibility per signal.
 
 For each ``pos_offset`` and each of the 5 measurement signals (sink, hidden_norm,
 value_norm, output_norm, cos_to_ref), per layer: ROC-AUC, Youden threshold and
@@ -18,14 +18,42 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
+REPO_ROOT = HERE.parent.parent  # repro_mb (makes experiments_hc_2 importable)
+for _p in (str(REPO_ROOT), str(HERE)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 import numpy as np  # noqa: E402
 
-from experiments_hc_1.config import ExpConfig, config_from_args, make_stage_parser  # noqa: E402
-from experiments_hc_1.core import io  # noqa: E402
-import experiments_hc_1.analysis_common as ac  # noqa: E402
+from experiments_hc_2.config import ExpConfig, config_from_args, make_stage_parser  # noqa: E402
+from experiments_hc_2.core import io  # noqa: E402
+import experiments_hc_2.stages.analysis_common as ac  # noqa: E402
+
+
+def _operating_points(evals: dict) -> dict:
+    """Per signal, the best-layer detail (direction + thresholds at Youden and
+    each FPR budget) plus the single best signal by AUC. Consumed by stage 07."""
+    per_signal: dict = {}
+    best = None  # (signal, auc)
+    for name, info in evals.items():
+        l = info.get("best_layer")
+        if l is None:
+            continue
+        m = info["per_layer"][l]
+        entry = {
+            "layer": l,
+            "auc": m.get("auc"),
+            "direction": m.get("direction"),
+            "youden_threshold": m.get("youden_threshold"),
+            "threshold_at_fpr": m.get("threshold_at_fpr"),
+            "tpr_at_fpr": m.get("tpr_at_fpr"),
+        }
+        per_signal[name] = entry
+        auc = entry["auc"]
+        if auc is not None and auc == auc and (best is None or auc > best[1]):
+            best = (name, auc)
+    best_signal = {"signal": best[0], **per_signal[best[0]]} if best else None
+    return {"best_signal": best_signal, "per_signal": per_signal}
 
 
 def _analyze_offset(cfg: ExpConfig, rows_all, hidden, success, offset: int) -> dict:
@@ -43,7 +71,18 @@ def _analyze_offset(cfg: ExpConfig, rows_all, hidden, success, offset: int) -> d
     y_asr = ac.binary_labels(rows, success=success)
     evals_asr = ac.evaluate_signals(signals, y_asr)
 
+    # operating points: per signal best layer + thresholds the cascade (07) reuses
+    op = _operating_points(evals)
+
     pos_dir = cfg.pos_dir(offset)
+    io.write_json(pos_dir / "operating_points.json", {
+        "pos_offset": offset,
+        "labels": "attack(B,D)=1 vs benign(C,E,F,G)=0",
+        "note": "thresholds are on the ORIENTED score (see 'direction'); apply as "
+                "(score if higher_is_attack else -score) >= threshold.",
+        "best_signal": op["best_signal"],
+        "per_signal": op["per_signal"],
+    })
     io.write_json(pos_dir / "threshold_defense.json", {
         "pos_offset": offset,
         "labels": "attack(B,D)=1 vs benign(C,E,F,G)=0",
@@ -99,7 +138,8 @@ def _md(offset, evals, evals_asr, per_type) -> str:
 
 
 def run(cfg: ExpConfig, lm=None) -> dict:  # lm unused (model-free stage)
-    rows_all, hidden, success = ac.load_artifacts(cfg.out_dir)
+    # §2.3 single-threshold analysis uses the BALANCED subset (equal per-type).
+    rows_all, hidden, success = ac.load_artifacts(cfg.out_dir, cfg.asr_judge, balanced=True)
     out = {}
     for off in cfg.pos_offsets:
         out[f"pos{off}"] = _analyze_offset(cfg, rows_all, hidden, success, off)

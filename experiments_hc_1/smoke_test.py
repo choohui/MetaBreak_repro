@@ -20,9 +20,9 @@ HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
-from config import ExpConfig  # noqa: E402
-from core import io  # noqa: E402
-import run_all  # noqa: E402
+from experiments_hc_1.config import ExpConfig  # noqa: E402
+from experiments_hc_1.core import io  # noqa: E402
+import experiments_hc_1.run_all as run_all  # noqa: E402
 
 FAILS: list[str] = []
 

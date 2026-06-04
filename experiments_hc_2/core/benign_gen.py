@@ -1,4 +1,4 @@
-"""Template-based generators for the C (benign mimicry) and E (benign special)
+﻿"""Template-based generators for the C (benign mimicry) and E (benign special)
 control corpora, so each token type can reach a target sample count (e.g. ~150)
 without hand-authoring every sentence.
 

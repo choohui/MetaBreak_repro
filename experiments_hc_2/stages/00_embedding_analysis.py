@@ -1,4 +1,4 @@
-"""Stage 00 (Main.md §1) — token-EMBEDDING-level special-vs-regular geometry.
+﻿"""Stage 00 (Main.md §1) — token-EMBEDDING-level special-vs-regular geometry.
 
 Confirmatory check: do special tokens differ from regular tokens in the input
 embedding table by L2 norm or cosine geometry? (The spec concluded there is no
@@ -16,14 +16,16 @@ from pathlib import Path
 
 import numpy as np
 
-from experiments_hc_1.core import io
+from experiments_hc_2.core import io
 
 HERE = Path(__file__).resolve().parent
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
+REPO_ROOT = HERE.parent.parent  # repro_mb (makes experiments_hc_2 importable)
+for _p in (str(REPO_ROOT), str(HERE)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from experiments_hc_1.config import ExpConfig, config_from_args, get_model, make_stage_parser  # noqa: E402
-from experiments_hc_1.core import metrics  # noqa: E402
+from experiments_hc_2.config import ExpConfig, config_from_args, get_model, make_stage_parser  # noqa: E402
+from experiments_hc_2.core import metrics  # noqa: E402
 
 
 def _stats(x: np.ndarray) -> dict:

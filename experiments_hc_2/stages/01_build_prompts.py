@@ -1,4 +1,4 @@
-"""Stage 01 (Main.md §2.1) — build the 7-type prompt set.
+﻿"""Stage 01 (Main.md §2.1) — build the 7-type prompt set.
 
 Produces ``prompts.jsonl`` (model-free). Each row:
     {sample_index, idx, source, variant, position_kind, slot_word, text}
@@ -14,15 +14,17 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from experiments_hc_1.core import benign_gen, benign_inject
+from experiments_hc_2.core import benign_gen, benign_inject
 
 HERE = Path(__file__).resolve().parent
-if str(HERE) not in sys.path:
-    sys.path.insert(0, str(HERE))
+REPO_ROOT = HERE.parent.parent  # repro_mb (makes experiments_hc_2 importable)
+for _p in (str(REPO_ROOT), str(HERE)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from experiments_hc_1.config import ExpConfig, config_from_args, make_stage_parser  # noqa: E402
-from experiments_hc_1.core import io  # noqa: E402
-from experiments_hc_1.core.mimicry import apply_mimicry, load_prompts  # noqa: E402
+from experiments_hc_2.config import ExpConfig, config_from_args, make_stage_parser  # noqa: E402
+from experiments_hc_2.core import io  # noqa: E402
+from experiments_hc_2.core.mimicry import apply_mimicry, load_prompts  # noqa: E402
 
 
 def _assistant_header(special_strs: list[str]) -> str:

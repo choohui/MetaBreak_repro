@@ -1,4 +1,4 @@
-"""Fake model + tokenizer for the model-free smoke test.
+﻿"""Fake model + tokenizer for the model-free smoke test.
 
 The goal is NOT realism but **coverage**: every stage and ``run_all`` must run
 end-to-end without a real checkpoint, exercising the real labeling / analysis
