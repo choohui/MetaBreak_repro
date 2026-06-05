@@ -60,6 +60,9 @@ F=positioned regular(정상, 위치 통제) · G=ordinary(정상, baseline).
 # 모델 없이 전구간 검증 (mock)
 python -m experiments_hc_2.smoke_test
 
+CUDA_VISIBLE_DEVICES=0 \
+python -m experiments_hc_2.run_all --model /data/emkim/models/Llama-3.1-8B-Instruct --n 150 --asr_judge both --guard_model /data/hcchoo/models/Llama-Guard-3-8B
+
 # 실제 모델 전체 실행
 python -m experiments_hc_2.run_all --model <Llama-3.1-8B-Instruct 경로> --n 150
 # ASR을 Llama-Guard로도 판정 (F 위양성 비교)
