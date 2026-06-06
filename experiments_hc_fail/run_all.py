@@ -11,7 +11,7 @@ REPO_ROOT = HERE.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from experiments_hc_4.config import ALL_STAGES, config_from_args, make_parser  # noqa: E402
+from experiments_hc_fail.config import ALL_STAGES, config_from_args, make_parser  # noqa: E402
 
 STAGE_MODULES = {
     "00": "experiments_hc_4.stages.00_embedding",

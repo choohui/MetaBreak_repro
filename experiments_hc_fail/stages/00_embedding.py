@@ -12,8 +12,8 @@ for p in (str(REPO_ROOT), str(PKG.parent)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from experiments_hc_4.config import ExpConfig, config_from_args, make_parser, require_model  # noqa: E402
-from experiments_hc_4.core import io  # noqa: E402
+from experiments_hc_fail.config import ExpConfig, config_from_args, make_parser, require_model  # noqa: E402
+from experiments_hc_fail.core import io  # noqa: E402
 
 
 def _smoke_replacement(cfg: ExpConfig) -> dict:

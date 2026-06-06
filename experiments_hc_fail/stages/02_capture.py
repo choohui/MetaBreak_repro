@@ -15,14 +15,14 @@ for p in (str(REPO_ROOT), str(PKG.parent)):
         sys.path.insert(0, p)
 
 from src.evaluate import matches_refusal  # noqa: E402
-from experiments_hc_4.config import ExpConfig, config_from_args, make_parser, require_model  # noqa: E402
-from experiments_hc_4.core import io  # noqa: E402
-from experiments_hc_4.core.capture import forward_capture, forward_capture_ids, sink_scores  # noqa: E402
-from experiments_hc_4.core.labeling import label_positions_for_variant, sample_ordinary_positions  # noqa: E402
-from experiments_hc_4.core.labels import ASR_VARIANTS, CAT_A, CAT_TO_LETTER  # noqa: E402
-from experiments_hc_4.core.model import DTYPES, load_model  # noqa: E402
-from experiments_hc_4.core.mock import load_mock_model  # noqa: E402
-from experiments_hc_4.core.template import template_prefix_suffix_ids, template_prefix_suffix_lengths  # noqa: E402
+from experiments_hc_fail.config import ExpConfig, config_from_args, make_parser, require_model  # noqa: E402
+from experiments_hc_fail.core import io  # noqa: E402
+from experiments_hc_fail.core.capture import forward_capture, forward_capture_ids, sink_scores  # noqa: E402
+from experiments_hc_fail.core.labeling import label_positions_for_variant, sample_ordinary_positions  # noqa: E402
+from experiments_hc_fail.core.labels import ASR_VARIANTS, CAT_A, CAT_TO_LETTER  # noqa: E402
+from experiments_hc_fail.core.model import DTYPES, load_model  # noqa: E402
+from experiments_hc_fail.core.mock import load_mock_model  # noqa: E402
+from experiments_hc_fail.core.template import template_prefix_suffix_ids, template_prefix_suffix_lengths  # noqa: E402
 
 
 def _cap_category(labels: dict[int, str], category: str, max_per: int) -> dict[int, str]:
@@ -136,7 +136,7 @@ def run(cfg: ExpConfig) -> dict:
         sinks = sink_scores(cap)["mean_over_heads"]
 
         if is_inject:
-            from experiments_hc_4.core.labels import CAT_C
+            from experiments_hc_fail.core.labels import CAT_C
             labels = {p: CAT_C for p in inject_positions}
         else:
             extra = {"mimicry_ids": mimicry_ids}
@@ -148,7 +148,7 @@ def run(cfg: ExpConfig) -> dict:
             labels = _cap_category(labels, CAT_A, cfg.max_a_per_prompt)
 
         for p in sample_ordinary_positions(cap.input_ids, lm.template, prefix_len, suffix_len, cfg.ordinary):
-            from experiments_hc_4.core.labels import CAT_G
+            from experiments_hc_fail.core.labels import CAT_G
             labels.setdefault(p, CAT_G)
 
         for base_pos, category in sorted(labels.items()):
