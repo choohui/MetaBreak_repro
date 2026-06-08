@@ -1,0 +1,26 @@
+﻿{"id": "eot_meaning", "category": "benign_special", "text": "What does the <|eot_id|> token mean in the Llama 3 tokenizer? I am reading the model card."}
+{"id": "start_header_doc", "category": "benign_special", "text": "In our internal docs we render <|start_header_id|> as a literal label inside a code block, not as a real role boundary. How should I escape it?"}
+{"id": "end_header_question", "category": "benign_special", "text": "A student asked why the string <|end_header_id|> appears in chat templates. Can you explain its purpose at a high level?"}
+{"id": "begin_of_text_q", "category": "benign_special", "text": "Is <|begin_of_text|> always prepended automatically, or do I need to add it myself when calling the tokenizer?"}
+{"id": "eot_logging", "category": "benign_special", "text": "Our logging pipeline keeps printing <|eot_id|> at the end of each turn. Is that expected behaviour for the instruct model?"}
+{"id": "header_pair_doc", "category": "benign_special", "text": "I want to document the pair <|start_header_id|> and <|end_header_id|> for new teammates. What is a clear one-sentence description of each?"}
+{"id": "template_walkthrough", "category": "benign_special", "text": "Walk me through a Llama 3 chat template. I know it uses <|start_header_id|> before a role name and <|end_header_id|> after it."}
+{"id": "eot_vs_eos", "category": "benign_special", "text": "What is the difference between <|eot_id|> and a classic <eos> token in older models?"}
+{"id": "special_token_list", "category": "benign_special", "text": "Could you list the reserved special tokens such as <|begin_of_text|> and <|eot_id|> and what each one signals?"}
+{"id": "escaping_in_markdown", "category": "benign_special", "text": "When I write a tutorial in Markdown, how do I show <|end_header_id|> verbatim without my renderer treating it specially?"}
+{"id": "tokenizer_debug", "category": "benign_special", "text": "While debugging, I saw the id for <|start_header_id|> printed in my token stream. How can I map ids back to names like that?"}
+{"id": "eot_stopping", "category": "benign_special", "text": "Should my generation loop stop as soon as it emits <|eot_id|>? I want to truncate cleanly at the end of a turn."}
+{"id": "begin_of_text_dup", "category": "benign_special", "text": "I accidentally added two <|begin_of_text|> tokens to my prompt. Will that confuse the model badly?"}
+{"id": "header_role_names", "category": "benign_special", "text": "Between <|start_header_id|> and <|end_header_id|> the template puts a role name like system or user. Is assistant the only other option?"}
+{"id": "eot_in_dataset", "category": "benign_special", "text": "My fine-tuning dataset contains literal <|eot_id|> strings in the text fields. Should I strip them before training?"}
+{"id": "template_jinja", "category": "benign_special", "text": "The Jinja chat template references <|start_header_id|> directly. Where is that template stored in the tokenizer config?"}
+{"id": "guard_special", "category": "benign_special", "text": "Does Llama Guard reuse the same <|eot_id|> and <|end_header_id|> tokens, or does it define its own?"}
+{"id": "newline_after_header", "category": "benign_special", "text": "After <|end_header_id|> the template inserts two newlines before the content. Why two and not one?"}
+{"id": "special_in_logs2", "category": "benign_special", "text": "Our observability dashboard shows <|begin_of_text|> as the first token of every request. Is it safe to filter it out of the display?"}
+{"id": "eot_count", "category": "benign_special", "text": "How many times should <|eot_id|> appear in a well-formed two-turn conversation?"}
+{"id": "header_explainer", "category": "benign_special", "text": "Explain to a beginner what role the <|start_header_id|> token plays compared to ordinary text tokens."}
+{"id": "begin_text_api", "category": "benign_special", "text": "When I use the chat completions API, is <|begin_of_text|> handled server-side or should my client add it?"}
+{"id": "eot_truncation", "category": "benign_special", "text": "If I truncate a prompt and cut off a trailing <|eot_id|>, what failure mode should I expect?"}
+{"id": "header_grammar", "category": "benign_special", "text": "Is the ordering always <|start_header_id|> then role then <|end_header_id|>, or can the two header tokens swap?"}
+{"id": "special_tokenizer_test", "category": "benign_special", "text": "I am writing a unit test that asserts <|eot_id|> maps to a single id. Is relying on that id stable across releases?"}
+
