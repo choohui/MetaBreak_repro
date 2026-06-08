@@ -4,7 +4,7 @@ from pathlib import Path
 
 from experiments_hc_4.config import ExpConfig
 from experiments_hc_4.core import io
-from experiments_hc_4.core.mimicry import apply_mimicry, assistant_header_from_replacement
+from experiments_hc_4.core.mimicry import assistant_header_from_replacement
 
 SPECIAL_TOKEN_POOL = [
     "<|eot_id|>",
@@ -99,8 +99,7 @@ def run(cfg: ExpConfig, lm=None) -> dict:
     tm1 = io.read_prompt_splits(cfg.tm1_path, limit=cfg.n)
     q = io.read_prompt_splits(cfg.q_path, limit=cfg.n)
     words = _load_words(cfg.positioned_words_path)
-    special = list(repl.get("target_token_strs", []))
-    repl_strs = list(repl.get("best_triple_decoded", []))
+    inject_ids = list(repl.get("best_triple_ids", []))
     header = assistant_header_from_replacement(repl)
 
     rows: list[dict] = []
@@ -118,7 +117,11 @@ def run(cfg: ExpConfig, lm=None) -> dict:
 
     for i, text in enumerate(tm1):
         add(i, "Q_TM-1_Llama", "malicious_special", text)
-        add(i, "Q_TM-1_Llama", "malicious_mimicry", apply_mimicry(text, special, repl_strs))
+        # B is built from the *literal*-header attack text; the mimicry
+        # substitution happens at the token-ID level in stage 02 (a plain
+        # string-replace would re-tokenize the replacements into several tokens
+        # and break the 5-token header shape find_regular_assistant_spans needs).
+        add(i, "Q_TM-1_Llama", "malicious_mimicry", text, inject_token_ids=inject_ids)
         word = words[i % len(words)] if words else "pineapple"
         add(i, "Q_TM-1_Llama", "positioned_regular", text.replace(header, f" {word} "), slot_word=word)
 

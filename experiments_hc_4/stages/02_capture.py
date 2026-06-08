@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 from experiments_hc_4.config import ExpConfig
 from experiments_hc_4.core import io
-from experiments_hc_4.core.capture import forward_capture_ids, forward_capture_text, row_signals
+from experiments_hc_4.core.capture import chat_input_ids, forward_capture_ids, forward_capture_text, row_signals
 from experiments_hc_4.core.labels import CAT_TO_LETTER, LETTER_TO_CAT, VARIANT_TO_LETTER
 from experiments_hc_4.core.model import get_model, refusal_success
 from experiments_hc_4.core.template import (
@@ -40,6 +40,28 @@ def _c_input_ids(lm, head: str, tail: str, inject_ids: list[int]) -> tuple[list[
     start = len(prefix) + len(head_ids)
     inj = [int(x) for x in inject_ids]
     return prefix + head_ids + inj + tail_ids + suffix, list(range(start, start + len(inj)))
+
+
+def _mimic_input_ids(lm, text: str, repl_ids: list[int]) -> list[int]:
+    """Build a malicious-mimicry (B) prompt at the token-ID level: tokenize the
+    literal-header attack text, then substitute the special-token ids at the
+    injected assistant header's replace positions with the mimicry ids. This
+    keeps the 5-token header shape (``assistant``@2, ``\\n\\n``@4) intact, which a
+    plain string-replace + re-tokenize destroys -- the replacement strings split
+    into several tokens and shift the fixed slots -- so find_regular_assistant_spans
+    can still locate the mimicked header. Only headers inside the content bounds
+    (the injected attack header, not the template's own trailing header) are touched.
+    """
+    tpl = lm.template
+    ids = chat_input_ids(lm, text)
+    lo, hi = content_bounds(lm.tokenizer, ids)
+    for span in find_literal_assistant_spans(ids, tpl):
+        if not (lo <= span.start and span.start + len(span.ids) <= hi):
+            continue
+        for j, off in enumerate(tpl.replace_positions):
+            if j < len(repl_ids):
+                ids[span.start + off] = int(repl_ids[j])
+    return ids
 
 
 def _labels_for(lm, row: dict, input_ids: list[int], c_positions: list[int] | None, cfg: ExpConfig) -> dict[int, str]:
@@ -91,6 +113,7 @@ def _labels_for(lm, row: dict, input_ids: list[int], c_positions: list[int] | No
 def run(cfg: ExpConfig, lm=None) -> dict:
     lm = get_model(cfg, lm)
     prompts = io.read_jsonl(cfg.prompts_path)
+    repl_ids = [int(x) for x in io.load_replacement(cfg.replacement_path).get("best_triple_ids", [])]
     token_rows: list[dict] = []
     input_rows: list[dict] = []
     responses: list[dict] = []
@@ -101,6 +124,9 @@ def run(cfg: ExpConfig, lm=None) -> dict:
         if row["variant"] == "benign_mimicry" and row.get("carrier_head") is not None:
             input_ids, c_positions = _c_input_ids(
                 lm, row["carrier_head"], row["carrier_tail"], row.get("inject_token_ids", []))
+            cap = forward_capture_ids(lm, input_ids)
+        elif row["variant"] == "malicious_mimicry":
+            input_ids = _mimic_input_ids(lm, row["text"], row.get("inject_token_ids", repl_ids))
             cap = forward_capture_ids(lm, input_ids)
         else:
             cap = forward_capture_text(lm, row["text"])
