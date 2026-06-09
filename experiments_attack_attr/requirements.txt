@@ -1,0 +1,12 @@
+# experiments_attack_attr — runtime deps. Mirrors repro_mb/requirements.txt
+# (the shared src/ attack code) plus this folder's analysis needs.
+torch>=2.3,<2.7
+transformers>=4.46,<4.49
+accelerate>=1.0,<2.0
+numpy>=1.26,<3.0
+safetensors>=0.4.0
+sentencepiece>=0.2.0
+tqdm>=4.66
+# Optional: enables the §2.1 logistic-regression probe + GroupKFold honest AUC.
+# Without it, core.metrics falls back to a numpy nearest-centroid probe.
+scikit-learn>=1.3,<2.0

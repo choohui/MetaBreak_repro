@@ -1,0 +1,25 @@
+# Benign, low-frequency-in-harmful-text words used as the F (positioned_regular)
+# slot filler. Each is dropped into the attack-header POSITION of the TM-1
+# skeleton, isolating the position effect from token identity (Main.md §2.1).
+# One word per line; comments (#) and blank lines are ignored. Words are cycled
+# across prompts and recorded per-prompt as `slot_word`.
+pineapple
+umbrella
+lighthouse
+meadow
+saxophone
+cinnamon
+glacier
+notebook
+trolley
+lantern
+hammock
+walnut
+turquoise
+pebble
+maple
+biscuit
+compass
+violet
+acorn
+kettle

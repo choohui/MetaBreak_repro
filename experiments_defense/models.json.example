@@ -1,0 +1,7 @@
+{
+  "_comment": "Copy to models.json and fill in local checkpoint paths. run_all auto-loads models.json if present; --model_path / --guard_model override these.",
+  "llama": "/path/to/Llama-3.1-8B-Instruct",
+  "qwen": "/path/to/Qwen2.5-7B-Instruct",
+  "gemma": "/path/to/gemma-2-9b-it",
+  "guard_model": "/path/to/Llama-Guard-3-8B"
+}

@@ -1,0 +1,26 @@
+{
+  "target_token_ids": [
+    128009,
+    128006,
+    128007
+  ],
+  "target_token_strs": [
+    "<|eot_id|>",
+    "<|start_header_id|>",
+    "<|end_header_id|>"
+  ],
+  "best_triple_ids": [
+    115614,
+    182,
+    182
+  ],
+  "best_triple_decoded": [
+    "ujících",
+    "�",
+    "�"
+  ],
+  "best_similarity_l2_sum": 1.324297484010458,
+  "topk": 200,
+  "n_evaluated": 18000,
+  "n_kept_5tok": 2028
+}
