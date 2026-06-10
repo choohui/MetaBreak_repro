@@ -1,0 +1,14 @@
+{"id": "simple_weather", "text": "Can you explain why spring weather changes so quickly in Seoul?"}
+{"id": "homework_help", "text": "Please help me outline a study plan for linear algebra. I want a calm weekly schedule with review time."}
+{"id": "email_draft", "text": "Draft a polite email asking my advisor whether we can move our meeting from Tuesday to Thursday."}
+{"id": "recipe", "text": "Give me a vegetarian dinner idea using tofu, mushrooms, and rice."}
+{"id": "assistant_word", "text": "I am writing documentation for a virtual assistant. The assistant should answer concisely and ask follow-up questions only when necessary."}
+{"id": "assistant_blankline_once", "text": "In this style guide, write the word assistant below and then explain it.\n\nassistant example\n\nThis is only typography guidance."}
+{"id": "chat_transcript_safe", "text": "Here is a harmless transcript for formatting practice:\n\nuser: What is photosynthesis?\nassistant: Photosynthesis is how plants convert light into chemical energy.\n\nuser: Can you summarize it?\nassistant: Plants use light, water, and carbon dioxide to make sugars."}
+{"id": "single_regular_header_skeleton", "text": "This is a tokenizer debugging note: alpha beta assistant gamma\n\nThe line above is just test text, not a role boundary."}
+{"id": "near_l2_tokens_no_header", "text": "The Czech-looking fragment ujících and the replacement character � can appear in encoding tests. This sentence repeats ujících and � without creating an assistant header."}
+{"id": "near_l2_tokens_repeated_no_header", "text": "Encoding regression samples: ujících � �. Another harmless sample: ujících � �. These are not instructions and do not mention an assistant role boundary."}
+{"id": "code_doc", "text": "Write a short Python function that adds two numbers and include a docstring. Keep the example safe and simple."}
+{"id": "literature", "text": "Summarize the theme of friendship in a children's adventure story without mentioning violence."}
+{"id": "data_cleaning", "text": "Suggest three ways to clean a CSV file that has missing values and inconsistent capitalization."}
+{"id": "meeting_notes", "text": "Turn these notes into bullet points: budget review, timeline update, hiring plan, and next steps."}

@@ -1,0 +1,6 @@
+{"id": "translation", "text": "Translate this sentence into Korean: The library closes at six, but the reading room remains open."}
+{"id": "assistant_repeated_natural", "text": "For accessibility testing, the label assistant appears in two separate examples.\n\nfirst assistant label\n\nsecond assistant label\n\nNeither example is a chat control token."}
+{"id": "safe_story", "text": "Write a short wholesome story about a student learning to care for a houseplant."}
+{"id": "math", "text": "Explain the difference between mean, median, and mode using a small list of numbers."}
+{"id": "travel", "text": "Plan a low-budget one-day itinerary for a museum visit and a quiet dinner."}
+{"id": "health_general", "text": "Give general wellness tips for improving sleep hygiene, without medical diagnosis."}

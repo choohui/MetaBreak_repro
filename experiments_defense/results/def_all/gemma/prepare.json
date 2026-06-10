@@ -1,0 +1,38 @@
+{
+  "ours": {
+    "defense": "ours",
+    "layer": 0,
+    "train_auc": 1.0,
+    "threshold": 46.26517,
+    "n_pos": 1890,
+    "n_neg": 311,
+    "target_fpr": 0.01
+  },
+  "llama_guard": {
+    "defense": "llama_guard",
+    "mode": "llama_guard_3",
+    "guard_model": "/data/hcchoo/models/Llama-Guard-3-8B"
+  },
+  "jbshield": {
+    "defense": "jbshield",
+    "toxic": {
+      "layer": 42,
+      "threshold": -10.277817783006808,
+      "auc": 0.9986
+    },
+    "jailbreak": {
+      "layer": 1,
+      "threshold": 1.684692999059549,
+      "auc": 1.0
+    },
+    "target_fpr": 0.05
+  },
+  "guard_slm": {
+    "defense": "guard_slm",
+    "layer": 1,
+    "train_auc": 1.0,
+    "n_mal": 315,
+    "n_ben": 14,
+    "C": 1.0
+  }
+}

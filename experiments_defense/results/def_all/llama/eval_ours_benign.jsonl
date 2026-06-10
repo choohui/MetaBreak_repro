@@ -1,0 +1,6 @@
+{"id": "translation", "action": "sanitize", "flagged": true}
+{"id": "assistant_repeated_natural", "action": "sanitize", "flagged": true}
+{"id": "safe_story", "action": "sanitize", "flagged": true}
+{"id": "math", "action": "sanitize", "flagged": true}
+{"id": "travel", "action": "sanitize", "flagged": false}
+{"id": "health_general", "action": "sanitize", "flagged": false}

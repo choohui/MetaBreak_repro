@@ -1,0 +1,81 @@
+{
+  "model": "gemma",
+  "baseline": {
+    "asr_before": 0.65926,
+    "n_attack": 135,
+    "n_attack_success": 89,
+    "gsm8k_acc_plain": 0.7,
+    "gsm8k_acc_header_nodef": 0.6,
+    "n_gsm8k": 50
+  },
+  "defenses": {
+    "ours": {
+      "attack": {
+        "asr_after": 0.28148,
+        "block_rate_among_successful": 0.62921,
+        "refuse_rate": 0.0,
+        "mean_flagged_tokens": 6.18519
+      },
+      "gsm8k_header": {
+        "acc_after": 0.58,
+        "refuse_rate": 0.0,
+        "flag_rate": 1.0
+      },
+      "benign": {
+        "refuse_rate": 0.0,
+        "flag_rate": 0.0
+      }
+    },
+    "llama_guard": {
+      "attack": {
+        "asr_after": 0.37037,
+        "block_rate_among_successful": 0.4382,
+        "refuse_rate": 0.6,
+        "mean_flagged_tokens": 0.6
+      },
+      "gsm8k_header": {
+        "acc_after": 0.6,
+        "refuse_rate": 0.0,
+        "flag_rate": 0.0
+      },
+      "benign": {
+        "refuse_rate": 0.0,
+        "flag_rate": 0.0
+      }
+    },
+    "jbshield": {
+      "attack": {
+        "asr_after": 0.0,
+        "block_rate_among_successful": 1.0,
+        "refuse_rate": 1.0,
+        "mean_flagged_tokens": 1.0
+      },
+      "gsm8k_header": {
+        "acc_after": 0.0,
+        "refuse_rate": 1.0,
+        "flag_rate": 1.0
+      },
+      "benign": {
+        "refuse_rate": 0.0,
+        "flag_rate": 0.0
+      }
+    },
+    "guard_slm": {
+      "attack": {
+        "asr_after": 0.0,
+        "block_rate_among_successful": 1.0,
+        "refuse_rate": 1.0,
+        "mean_flagged_tokens": 1.0
+      },
+      "gsm8k_header": {
+        "acc_after": 0.0,
+        "refuse_rate": 1.0,
+        "flag_rate": 1.0
+      },
+      "benign": {
+        "refuse_rate": 0.0,
+        "flag_rate": 0.0
+      }
+    }
+  }
+}

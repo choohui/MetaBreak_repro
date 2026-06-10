@@ -1,0 +1,29 @@
+{
+  "run": "def_all",
+  "models": {
+    "llama": {
+      "attack_train": 315,
+      "attack_test": 135,
+      "benign_train": 14,
+      "benign_test": 6,
+      "gsm8k": 50,
+      "mimicked": false
+    },
+    "qwen": {
+      "attack_train": 315,
+      "attack_test": 135,
+      "benign_train": 14,
+      "benign_test": 6,
+      "gsm8k": 50,
+      "mimicked": false
+    },
+    "gemma": {
+      "attack_train": 315,
+      "attack_test": 135,
+      "benign_train": 14,
+      "benign_test": 6,
+      "gsm8k": 50,
+      "mimicked": false
+    }
+  }
+}
