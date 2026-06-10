@@ -19,6 +19,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+from tqdm import tqdm
+
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
@@ -73,7 +75,7 @@ def run(cfg: ExpConfig) -> dict:
     print(f"[run_all] {cfg.slug()} :: models={cfg.models} defenses={cfg.defenses} smoke={cfg.smoke}")
     s01.run(cfg)
     done, failed = [], {}
-    for model in cfg.models:
+    for model in tqdm(cfg.models, desc="[run_all] models", unit="model", dynamic_ncols=True):
         print(f"[run_all] === model: {model} ===")
         lm = None
         defenses = {}

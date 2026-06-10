@@ -18,4 +18,5 @@ accelerate>=1.0,<2.0      # required by from_pretrained(low_cpu_mem_usage=True)
 numpy>=1.26,<3.0
 safetensors>=0.4.0        # model weights are .safetensors
 sentencepiece>=0.2.0      # tokenizer fallback for some families
+tqdm>=4.66                # progress bars for experiment pipelines
 datasets>=2.18,<4.0       # used by experiments_yeonseok/ (XSTest benchmark download)

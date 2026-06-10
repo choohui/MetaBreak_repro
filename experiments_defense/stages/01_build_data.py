@@ -8,13 +8,15 @@ Per model family writes under ``results/<run>/data/<model>/``:
 
 from __future__ import annotations
 
+from tqdm import tqdm
+
 from core import data, io
 from config import ExpConfig
 
 
 def run(cfg: ExpConfig, lm=None) -> dict:
     summary = {"run": cfg.slug(), "models": {}}
-    for model in cfg.models:
+    for model in tqdm(cfg.models, desc="[01] build data", unit="model", dynamic_ncols=True):
         ddir = cfg.result_dir / "data" / model
 
         attacks = data.load_attack_prompts(model, cfg.n_attack,

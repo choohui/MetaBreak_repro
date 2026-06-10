@@ -16,26 +16,30 @@ TRAIN-fitted thresholds. (JBShield-M mitigation steering is left as future work.
 from __future__ import annotations
 
 import numpy as np
+from tqdm import tqdm
 
 from core import capture, stats
 from core.defense_base import REFUSAL_TEXT, GuardResult
 from core.model import LoadedModel
 
 
-def _pooled(lm: LoadedModel, texts: list[str]) -> np.ndarray:
+def _pooled(lm: LoadedModel, texts: list[str], desc: str) -> np.ndarray:
     """[n, L+1, dim] last-token hidden per prompt."""
-    return np.stack([capture.last_token(capture.capture_hidden(lm, t)[1]) for t in texts],
-                    axis=0).astype(np.float64)
+    rows = [
+        capture.last_token(capture.capture_hidden(lm, t)[1])
+        for t in tqdm(texts, desc=desc, unit="prompt", leave=False, dynamic_ncols=True)
+    ]
+    return np.stack(rows, axis=0).astype(np.float64)
 
 
-def _fit_concept(Xpos: np.ndarray, Xneg: np.ndarray, target_fpr: float) -> dict:
+def _fit_concept(Xpos: np.ndarray, Xneg: np.ndarray, target_fpr: float, desc: str) -> dict:
     """Per-layer unit mean-difference direction; pick best layer + low-FPR threshold."""
     n_layers = Xpos.shape[1]
     X = np.concatenate([Xpos, Xneg], axis=0)
     y = np.concatenate([np.ones(len(Xpos)), np.zeros(len(Xneg))])
     proj = np.full((len(X), n_layers), np.nan)
     dirs = np.zeros((n_layers, Xpos.shape[2]))
-    for l in range(n_layers):
+    for l in tqdm(range(n_layers), desc=desc, unit="layer", leave=False, dynamic_ncols=True):
         w = Xpos[:, l, :].mean(0) - Xneg[:, l, :].mean(0)
         nw = np.linalg.norm(w)
         if nw == 0:
@@ -66,12 +70,12 @@ class JBShieldDefense:
         jailbreak = [r["text"] for r in calib["attack_train"]]
         harmless = [r["text"] for r in calib["benign_train"]]
 
-        Xharm = _pooled(lm, harmful)
-        Xharmless = _pooled(lm, harmless)
-        Xjail = _pooled(lm, jailbreak)
+        Xharm = _pooled(lm, harmful, "[jbshield] harmful calib")
+        Xharmless = _pooled(lm, harmless, "[jbshield] harmless calib")
+        Xjail = _pooled(lm, jailbreak, "[jbshield] jailbreak calib")
 
-        self.toxic = _fit_concept(Xharm, Xharmless, self.target_fpr)
-        self.jail = _fit_concept(Xjail, Xharm, self.target_fpr)
+        self.toxic = _fit_concept(Xharm, Xharmless, self.target_fpr, "[jbshield] toxic layers")
+        self.jail = _fit_concept(Xjail, Xharm, self.target_fpr, "[jbshield] jail layers")
         return {"defense": self.name,
                 "toxic": {k: self.toxic[k] for k in ("layer", "threshold", "auc")},
                 "jailbreak": {k: self.jail[k] for k in ("layer", "threshold", "auc")},

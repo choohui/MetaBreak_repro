@@ -11,6 +11,8 @@ detail jsonl for inspection.
 
 from __future__ import annotations
 
+from tqdm import tqdm
+
 from core import io
 from core.judge import attack_success, gsm8k_correct
 from core.data import gsm8k_with_header
@@ -34,14 +36,20 @@ def run(cfg: ExpConfig, lm, model: str, defenses: dict) -> dict:
 
     # ---------------- baselines (no defense) ---------------- #
     base_success: dict[str, bool] = {}
-    for r in attack:
+    for r in tqdm(attack, desc=f"[03:{model}] baseline attack", unit="prompt",
+                  leave=False, dynamic_ncols=True):
         resp = generate(lm, r["text"], mnt)
         base_success[r["id"]] = attack_success(resp)
-    acc_plain = [gsm8k_correct(generate(lm, g["question"], mnt), g["gold"]) for g in gsm8k]
-    acc_header_nodef = [
-        gsm8k_correct(generate(lm, gsm8k_with_header(g["question"], model), mnt), g["gold"])
-        for g in gsm8k
-    ]
+    acc_plain = []
+    for g in tqdm(gsm8k, desc=f"[03:{model}] baseline gsm8k", unit="prompt",
+                  leave=False, dynamic_ncols=True):
+        acc_plain.append(gsm8k_correct(generate(lm, g["question"], mnt), g["gold"]))
+    acc_header_nodef = []
+    for g in tqdm(gsm8k, desc=f"[03:{model}] baseline gsm8k+header", unit="prompt",
+                  leave=False, dynamic_ncols=True):
+        acc_header_nodef.append(
+            gsm8k_correct(generate(lm, gsm8k_with_header(g["question"], model), mnt), g["gold"])
+        )
     n_base_succ = sum(base_success.values())
     baseline = {
         "asr_before": _mean([int(v) for v in base_success.values()]),
@@ -53,11 +61,13 @@ def run(cfg: ExpConfig, lm, model: str, defenses: dict) -> dict:
 
     # ---------------- per-defense ---------------- #
     per_defense: dict[str, dict] = {}
-    for name, d in defenses.items():
+    for name, d in tqdm(defenses.items(), desc=f"[03:{model}] defenses", unit="defense",
+                        dynamic_ncols=True):
         atk_rows, gsm_rows, ben_rows = [], [], []
 
         succ_after, blocked, flagged_atk, refused_atk = [], [], [], []
-        for r in attack:
+        for r in tqdm(attack, desc=f"[03:{model}:{name}] attack", unit="prompt",
+                      leave=False, dynamic_ncols=True):
             e = eval_one(lm, d, r["text"], mnt)
             s = attack_success(e["response"])
             succ_after.append(int(s))
@@ -69,7 +79,8 @@ def run(cfg: ExpConfig, lm, model: str, defenses: dict) -> dict:
                              "success": s, "response": e["response"][:300]})
 
         gsm_correct, gsm_refuse, gsm_flag = [], [], []
-        for g in gsm8k:
+        for g in tqdm(gsm8k, desc=f"[03:{model}:{name}] gsm8k+header", unit="prompt",
+                      leave=False, dynamic_ncols=True):
             prompt = gsm8k_with_header(g["question"], model)
             e = eval_one(lm, d, prompt, mnt)
             c = gsm8k_correct(e["response"], g["gold"])
@@ -80,7 +91,8 @@ def run(cfg: ExpConfig, lm, model: str, defenses: dict) -> dict:
                              "correct": c, "response": e["response"][:200]})
 
         ben_refuse, ben_flag = [], []
-        for r in benign:
+        for r in tqdm(benign, desc=f"[03:{model}:{name}] benign", unit="prompt",
+                      leave=False, dynamic_ncols=True):
             e = eval_one(lm, d, r["text"], mnt)
             ben_refuse.append(int(e["action"] == "refuse"))
             ben_flag.append(int(e["flagged"]))

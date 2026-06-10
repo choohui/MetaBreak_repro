@@ -11,15 +11,19 @@ refusal-keyword judge elsewhere in the harness.
 from __future__ import annotations
 
 import numpy as np
+from tqdm import tqdm
 
 from core import capture, stats
 from core.defense_base import REFUSAL_TEXT, GuardResult
 from core.model import LoadedModel
 
 
-def _pooled(lm: LoadedModel, texts: list[str]) -> np.ndarray:
-    return np.stack([capture.last_token(capture.capture_hidden(lm, t)[1]) for t in texts],
-                    axis=0).astype(np.float64)
+def _pooled(lm: LoadedModel, texts: list[str], desc: str) -> np.ndarray:
+    rows = [
+        capture.last_token(capture.capture_hidden(lm, t)[1])
+        for t in tqdm(texts, desc=desc, unit="prompt", leave=False, dynamic_ncols=True)
+    ]
+    return np.stack(rows, axis=0).astype(np.float64)
 
 
 class GuardSLMDefense:
@@ -37,13 +41,15 @@ class GuardSLMDefense:
 
         mal = [r["text"] for r in calib["attack_train"]]
         ben = [r["text"] for r in calib["benign_train"]]
-        Xmal, Xben = _pooled(lm, mal), _pooled(lm, ben)
+        Xmal = _pooled(lm, mal, "[guard_slm] malicious calib")
+        Xben = _pooled(lm, ben, "[guard_slm] benign calib")
         X = np.concatenate([Xmal, Xben], axis=0)
         y = np.concatenate([np.ones(len(Xmal)), np.zeros(len(Xben))]).astype(int)
         n_layers = X.shape[1]
 
         best = {"layer": 0, "auc": -1.0, "svm": None, "scaler": None}
-        for l in range(n_layers):
+        for l in tqdm(range(n_layers), desc="[guard_slm] fit layers", unit="layer",
+                      leave=False, dynamic_ncols=True):
             Xl = X[:, l, :]
             scaler = StandardScaler().fit(Xl)
             Xs = scaler.transform(Xl)

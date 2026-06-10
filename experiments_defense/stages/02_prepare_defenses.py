@@ -8,6 +8,8 @@ round-tripped through disk). Writes ``<model>/prepare.json`` summaries.
 
 from __future__ import annotations
 
+from tqdm import tqdm
+
 from core import io
 from config import ExpConfig
 from defenses import build_defense
@@ -21,7 +23,8 @@ def run(cfg: ExpConfig, lm, model: str) -> tuple[dict, dict]:
     }
     summaries: dict[str, dict] = {}
     defenses: dict[str, object] = {}
-    for name in cfg.defenses:
+    for name in tqdm(cfg.defenses, desc=f"[02:{model}] prepare", unit="defense",
+                     dynamic_ncols=True):
         kwargs = {"smoke": cfg.smoke}
         if name == "llama_guard":
             kwargs.update(guard_model=cfg.guard_model, dtype=cfg.dtype, device=cfg.device)

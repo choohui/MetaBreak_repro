@@ -14,6 +14,7 @@ refusal, so benign utility is preserved.
 from __future__ import annotations
 
 import numpy as np
+from tqdm import tqdm
 
 from core import capture, stats
 from core.defense_base import GuardResult
@@ -40,12 +41,14 @@ class OursDefense:
     def prepare(self, lm: LoadedModel, calib: dict) -> dict:
         pos_vecs: list[np.ndarray] = []   # [L+1, dim] per attack-slot token
         neg_vecs: list[np.ndarray] = []
-        for rec in calib["attack_train"]:
+        for rec in tqdm(calib["attack_train"], desc="[ours] attack calib", unit="prompt",
+                        leave=False, dynamic_ncols=True):
             ids, hid = capture.capture_hidden(lm, rec["text"])
             for p in sorted(attack_slot_positions(ids, lm.template)):
                 if 0 <= p < hid.shape[1]:
                     pos_vecs.append(hid[:, p, :])
-        for rec in calib["benign_train"]:
+        for rec in tqdm(calib["benign_train"], desc="[ours] benign calib", unit="prompt",
+                        leave=False, dynamic_ncols=True):
             ids, hid = capture.capture_hidden(lm, rec["text"])
             lo, hi = self._content_range(lm, hid.shape[1])
             idx = list(range(lo, hi))
@@ -66,7 +69,8 @@ class OursDefense:
         dirs = np.zeros((n_layers, Hpos.shape[2]), dtype=np.float64)
         H = np.concatenate([Hpos, Hneg], axis=0)
         y = np.concatenate([np.ones(Hpos.shape[0]), np.zeros(Hneg.shape[0])])
-        for l in range(n_layers):
+        for l in tqdm(range(n_layers), desc="[ours] fit layers", unit="layer",
+                      leave=False, dynamic_ncols=True):
             w = Hpos[:, l, :].mean(0) - Hneg[:, l, :].mean(0)
             nw = np.linalg.norm(w)
             if nw == 0:
